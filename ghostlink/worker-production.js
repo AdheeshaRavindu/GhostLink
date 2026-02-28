@@ -303,7 +303,7 @@ async function extractPageMetadata(url) {
   };
 
   try {
-    const response = await fetch(url, { method: 'GET', timeout: 5000 });
+    const response = await fetch(url, { method: 'GET' });
     if (!response.ok) return metadata;
 
     const contentType = response.headers.get('content-type');
@@ -449,7 +449,7 @@ async function extractDNSInfo(url) {
 
     const startTime = Date.now();
     // Note: Cloudflare Workers don't have direct DNS lookup, but we can infer from fetch
-    const response = await fetch(`https://${urlObj.hostname}`, { method: 'HEAD' });
+    const response = await fetch(urlObj.hostname ? `https://${urlObj.hostname}` : url, { method: 'HEAD' });
     dnsInfo.dnsLookupTime = Date.now() - startTime;
     
     // Try to get server IP from headers if available
