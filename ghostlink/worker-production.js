@@ -752,16 +752,24 @@ export default {
           );
         }
 
-        // Validate URL format
-        let urlObj;
-        try {
-          urlObj = new URL(url);
-        } catch (e) {
+        // Basic URL format validation (more permissive)
+        const urlString = url.trim();
+        if (urlString.length === 0) {
           return new Response(
             JSON.stringify({
-              error: 'Invalid URL format. Please include protocol (http:// or https://).',
-              code: 'INVALID_URL',
-              details: e.message
+              error: 'URL cannot be empty',
+              code: 'EMPTY_URL'
+            }),
+            { status: 400, headers: corsHeaders }
+          );
+        }
+
+        // Check if URL has protocol
+        if (!urlString.startsWith('http://') && !urlString.startsWith('https://')) {
+          return new Response(
+            JSON.stringify({
+              error: 'URL must start with http:// or https://',
+              code: 'MISSING_PROTOCOL'
             }),
             { status: 400, headers: corsHeaders }
           );
@@ -769,7 +777,7 @@ export default {
 
         // Analyze the URL with error handling
         try {
-          const result = await analyzeUrl(url);
+          const result = await analyzeUrl(urlString);
 
           return new Response(
             JSON.stringify({
@@ -785,7 +793,7 @@ export default {
               error: 'Analysis encountered an error',
               code: 'ANALYSIS_ERROR',
               message: analysisError.message,
-              url: url
+              url: urlString
             }),
             { status: 500, headers: corsHeaders }
           );
