@@ -32,7 +32,7 @@ const TECH_GLOSSARY = {
 // Function to add tooltip to technical terms
 function addTooltip(text, term) {
   if (TECH_GLOSSARY[term]) {
-    return `<span class="tech-term" title="${TECH_GLOSSARY[term]}">${text}</span>`;
+    return `${text} <span class="tech-term" title="${TECH_GLOSSARY[term]}">ⓘ</span>`;
   }
   return text;
 }
@@ -48,10 +48,11 @@ function addTooltipsToText(text) {
   ];
   
   termsToReplace.forEach(term => {
-    // Create regex with word boundaries to avoid partial matches
-    const regex = new RegExp(`\\b${term}\\b`, 'g');
-    if (regex.test(result) && TECH_GLOSSARY[term]) {
-      result = result.replace(regex, `<span class="tech-term" title="${TECH_GLOSSARY[term]}">${term}</span>`);
+    // Only replace if term exists and hasn't already been replaced
+    if (TECH_GLOSSARY[term] && !result.includes(`${term} <span class="tech-term"`)) {
+      // Create regex with word boundaries to avoid partial matches
+      const regex = new RegExp(`\\b${term}\\b(?!\\s*<span class="tech-term")`, 'g');
+      result = result.replace(regex, `${term} <span class="tech-term" title="${TECH_GLOSSARY[term]}">ⓘ</span>`);
     }
   });
   

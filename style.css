@@ -844,16 +844,18 @@ body.ui-expanded .info-card p {
 .tech-term {
     position: relative;
     color: #00ff41;
-    font-weight: 600;
-    border-bottom: 2px dotted #00ff41;
+    font-weight: 700;
     cursor: help;
     transition: all 0.2s ease;
+    display: inline-block;
+    font-size: 0.9em;
+    margin-left: 2px;
+    vertical-align: middle;
 }
 
 .tech-term:hover {
-    background-color: rgba(0, 255, 65, 0.1);
-    border-bottom-color: #00ffff;
     color: #00ffff;
+    transform: scale(1.15);
 }
 
 /* Tooltip Content */
@@ -865,7 +867,7 @@ body.ui-expanded .info-card p {
     transform: translateX(-50%);
     background-color: #1a1a2e;
     color: #e8e8e8;
-    padding: 8px 12px;
+    padding: 10px 14px;
     border-radius: 6px;
     border: 1px solid #00ff41;
     font-size: 0.85rem;
