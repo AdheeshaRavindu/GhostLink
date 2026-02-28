@@ -179,7 +179,6 @@ function displayResults(result) {
                 item.className = 'finding-item';
 
                 item.innerHTML = `
-                    <div class="finding-category">${finding.category}</div>
                     <div class="finding-type">${escapeHtml(finding.type)}</div>
                     <div class="finding-description">${escapeHtml(finding.description)}</div>
                     <div class="finding-points">-${finding.points} points</div>
