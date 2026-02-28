@@ -269,6 +269,127 @@ function calculateWeightedScore(findings) {
   return Math.min(Math.round(weightedScore / findings.length || 0), 100);
 }
 
+// URL COMPONENT ANALYSIS
+function analyzeURLComponents(url) {
+  try {
+    const urlObj = new URL(url);
+    const pathSegments = urlObj.pathname.split('/').filter(s => s.length > 0);
+    
+    return {
+      protocol: urlObj.protocol,
+      domain: urlObj.hostname,
+      port: urlObj.port || (urlObj.protocol === 'https:' ? '443' : '80'),
+      pathDepth: pathSegments.length,
+      pathLength: urlObj.pathname.length,
+      queryParamCount: new URLSearchParams(urlObj.search).size,
+      hasFragment: urlObj.hash.length > 0,
+      domainParts: urlObj.hostname.split('.').length
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+// EXTRACT PAGE METADATA
+async function extractPageMetadata(url) {
+  const metadata = {
+    title: null,
+    description: null,
+    contentType: null,
+    favicon: null,
+    language: null,
+    charset: null,
+    hasForm: false
+  };
+
+  try {
+    const response = await fetch(url, { method: 'GET', timeout: 5000 });
+    if (!response.ok) return metadata;
+
+    const contentType = response.headers.get('content-type');
+    metadata.contentType = contentType;
+
+    if (!contentType || !contentType.includes('text/html')) {
+      return metadata;
+    }
+
+    const html = await response.text();
+    const maxLength = Math.min(html.length, 50000);
+    const htmlSnippet = html.substring(0, maxLength);
+
+    // Extract title
+    const titleMatch = htmlSnippet.match(/<title[^>]*>([^<]+)<\/title>/i);
+    metadata.title = titleMatch ? titleMatch[1].substring(0, 100) : null;
+
+    // Extract meta description
+    const descMatch = htmlSnippet.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i);
+    metadata.description = descMatch ? descMatch[1].substring(0, 150) : null;
+
+    // Extract language
+    const langMatch = htmlSnippet.match(/<html[^>]*lang=["']([^"']+)["']/i);
+    metadata.language = langMatch ? langMatch[1] : null;
+
+    // Extract charset
+    const charsetMatch = htmlSnippet.match(/<meta[^>]*charset=["']?([^"'>\s]+)/i);
+    metadata.charset = charsetMatch ? charsetMatch[1] : null;
+
+    // Extract favicon
+    const faviconMatch = htmlSnippet.match(/<link[^>]*rel=["'](?:shortcut\s)?icon["'][^>]*href=["']([^"']+)["']/i);
+    if (faviconMatch) {
+      metadata.favicon = faviconMatch[1];
+    }
+
+    // Check for forms
+    metadata.hasForm = /<form[^>]*>/i.test(htmlSnippet);
+
+    return metadata;
+  } catch (e) {
+    return metadata;
+  }
+}
+
+// EXTRACT SERVER INFO
+async function extractServerInfo(url) {
+  const serverInfo = {
+    server: null,
+    poweredBy: null,
+    xFrameOptions: null,
+    xContentTypeOptions: null,
+    contentSecurityPolicy: null,
+    responseTime: 0,
+    statusCode: null,
+    technologies: []
+  };
+
+  const startTime = Date.now();
+
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+    serverInfo.responseTime = Date.now() - startTime;
+    serverInfo.statusCode = response.status;
+
+    serverInfo.server = response.headers.get('server');
+    serverInfo.poweredBy = response.headers.get('x-powered-by');
+    serverInfo.xFrameOptions = response.headers.get('x-frame-options');
+    serverInfo.xContentTypeOptions = response.headers.get('x-content-type-options');
+    serverInfo.contentSecurityPolicy = response.headers.get('content-security-policy') ? 'Present' : null;
+
+    // Detect technologies from headers
+    const serverHeader = response.headers.get('server') || '';
+    if (serverHeader.includes('Apache')) serverInfo.technologies.push('Apache');
+    if (serverHeader.includes('nginx')) serverInfo.technologies.push('Nginx');
+    if (serverHeader.includes('Microsoft-IIS')) serverInfo.technologies.push('IIS');
+    if (response.headers.get('x-aspnet-version')) serverInfo.technologies.push('ASP.NET');
+    if (response.headers.get('x-powered-by')?.includes('Express')) serverInfo.technologies.push('Express.js');
+    if (response.headers.get('x-powered-by')?.includes('PHP')) serverInfo.technologies.push('PHP');
+
+  } catch (e) {
+    serverInfo.responseTime = Date.now() - startTime;
+  }
+
+  return serverInfo;
+}
+
 // MAIN ANALYSIS
 async function analyzeUrl(url) {
   const findings = [];
@@ -363,10 +484,21 @@ async function analyzeUrl(url) {
     });
   }
 
+  // 5. GATHER DETAILED INFORMATION
+  const urlComponents = analyzeURLComponents(url);
+  const pageMetadata = await extractPageMetadata(url);
+  const serverInfo = await extractServerInfo(url);
+
   return {
     score: Math.min(totalScore, 100),
     riskLevel: getRiskLevel(Math.min(totalScore, 100)),
-    findings: findings
+    findings: findings,
+    details: {
+      url: url,
+      components: urlComponents,
+      metadata: pageMetadata,
+      server: serverInfo
+    }
   };
 }
 

@@ -194,6 +194,90 @@ function displayResults(result) {
         empty.innerHTML = '<p>No security threats detected. This URL appears to be safe!</p>';
         resultsSection.appendChild(empty);
     }
+
+    // Display detailed information
+    if (result.details) {
+        displayDetailedInfo(result.details);
+    }
+}
+
+// Display Detailed Information
+function displayDetailedInfo(details) {
+    const detailsCard = document.createElement('div');
+    detailsCard.className = 'details-card';
+    detailsCard.innerHTML = '<div class="details-header">URL Intelligence</div>';
+
+    const detailsGrid = document.createElement('div');
+    detailsGrid.className = 'details-grid';
+
+    // URL Components
+    if (details.components) {
+        const comp = details.components;
+        const urlInfo = `
+            <div class="detail-section">
+                <div class="detail-title">🔗 URL Structure</div>
+                <div class="detail-item">
+                    <span class="detail-label">Protocol:</span>
+                    <span class="detail-value">${escapeHtml(comp.protocol)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Domain:</span>
+                    <span class="detail-value">${escapeHtml(comp.domain)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Port:</span>
+                    <span class="detail-value">${comp.port}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Path Depth:</span>
+                    <span class="detail-value">${comp.pathDepth} segment${comp.pathDepth !== 1 ? 's' : ''}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Query Parameters:</span>
+                    <span class="detail-value">${comp.queryParamCount}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Domain Parts:</span>
+                    <span class="detail-value">${comp.domainParts}</span>
+                </div>
+            </div>
+        `;
+        detailsGrid.innerHTML += urlInfo;
+    }
+
+    // Page Metadata
+    if (details.metadata) {
+        const meta = details.metadata;
+        let metaInfo = '<div class="detail-section"><div class="detail-title">📄 Page Metadata</div>';
+        
+        if (meta.title) metaInfo += `<div class="detail-item"><span class="detail-label">Title:</span><span class="detail-value">${escapeHtml(meta.title)}</span></div>`;
+        if (meta.description) metaInfo += `<div class="detail-item"><span class="detail-label">Description:</span><span class="detail-value">${escapeHtml(meta.description)}</span></div>`;
+        if (meta.language) metaInfo += `<div class="detail-item"><span class="detail-label">Language:</span><span class="detail-value">${escapeHtml(meta.language)}</span></div>`;
+        if (meta.charset) metaInfo += `<div class="detail-item"><span class="detail-label">Charset:</span><span class="detail-value">${escapeHtml(meta.charset)}</span></div>`;
+        if (meta.contentType) metaInfo += `<div class="detail-item"><span class="detail-label">Content-Type:</span><span class="detail-value">${escapeHtml(meta.contentType)}</span></div>`;
+        metaInfo += `<div class="detail-item"><span class="detail-label">Has Form:</span><span class="detail-value">${meta.hasForm ? '⚠️ Yes' : '✓ No'}</span></div>`;
+        
+        metaInfo += '</div>';
+        detailsGrid.innerHTML += metaInfo;
+    }
+
+    // Server Information
+    if (details.server) {
+        const server = details.server;
+        let serverInfo = '<div class="detail-section"><div class="detail-title">🖥️ Server Information</div>';
+        
+        if (server.server) serverInfo += `<div class="detail-item"><span class="detail-label">Server:</span><span class="detail-value">${escapeHtml(server.server)}</span></div>`;
+        if (server.statusCode) serverInfo += `<div class="detail-item"><span class="detail-label">Status Code:</span><span class="detail-value">${server.statusCode}</span></div>`;
+        if (server.responseTime) serverInfo += `<div class="detail-item"><span class="detail-label">Response Time:</span><span class="detail-value">${server.responseTime}ms</span></div>`;
+        if (server.technologies.length > 0) serverInfo += `<div class="detail-item"><span class="detail-label">Technologies:</span><span class="detail-value">${escapeHtml(server.technologies.join(', '))}</span></div>`;
+        if (server.xFrameOptions) serverInfo += `<div class="detail-item"><span class="detail-label">X-Frame-Options:</span><span class="detail-value">${escapeHtml(server.xFrameOptions)}</span></div>`;
+        
+        serverInfo += '</div>';
+        detailsGrid.innerHTML += serverInfo;
+    }
+
+    detailsCard.appendChild(detailsGrid);
+    resultsSection.appendChild(detailsCard);
 }
 
 // Show Loading State
