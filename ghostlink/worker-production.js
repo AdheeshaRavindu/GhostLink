@@ -610,8 +610,8 @@ async function analyzeUrl(url) {
   const recommendations = generateSecurityRecommendations(details);
 
   return {
-    score: Math.min(totalScore, 100),
-    riskLevel: getRiskLevel(Math.min(totalScore, 100)),
+    score: totalScore,
+    riskLevel: getRiskLevel(totalScore),
     findings: findings,
     details: details,
     recommendations: recommendations
