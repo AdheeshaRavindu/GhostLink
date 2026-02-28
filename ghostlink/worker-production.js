@@ -1,16 +1,11 @@
 const SUSPICIOUS_KEYWORDS = ['login', 'verify', 'secure', 'update', 'bank', 'free'];
+const SUSPICIOUS_TLDS = ['xyz', 'top', 'click', 'pw', 'tk', 'ml', 'cf', 'ga', 'online', 'site', 'space', 'download'];
 
+// PHISHING RISK CHECKS
 function checkIPAddress(url) {
   const ipPattern = /^https?:\/\/(\d{1,3}\.){3}\d{1,3}/;
   if (ipPattern.test(url)) {
     return { found: true, points: 40 };
-  }
-  return { found: false, points: 0 };
-}
-
-function checkNoHTTPS(url) {
-  if (url.startsWith('http://')) {
-    return { found: true, points: 20 };
   }
   return { found: false, points: 0 };
 }
@@ -62,79 +57,216 @@ function checkDomainLength(url) {
   return { found: false, points: 0 };
 }
 
+// HTTPS & SSL CHECKS
+function checkHTTPS(url) {
+  if (!url.startsWith('https://')) {
+    return { found: true, points: 20 };
+  }
+  return { found: false, points: 0 };
+}
+
+async function checkHTTPSRedirect(url) {
+  try {
+    if (!url.startsWith('http://')) {
+      return { found: false, points: 0 };
+    }
+
+    const response = await fetch(url, {
+      method: 'HEAD',
+      redirect: 'manual'
+    });
+
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('location');
+      if (location && location.startsWith('https://')) {
+        return { found: false, points: 0 };
+      }
+    }
+
+    return { found: true, points: 15 };
+  } catch (e) {
+    return { found: false, points: 0 };
+  }
+}
+
+async function checkHSTS(url) {
+  try {
+    const urlObj = new URL(url);
+    const response = await fetch(url, {
+      method: 'HEAD'
+    });
+
+    const hsts = response.headers.get('strict-transport-security');
+    if (!hsts) {
+      return { found: true, points: 10 };
+    }
+    return { found: false, points: 0 };
+  } catch (e) {
+    return { found: false, points: 0 };
+  }
+}
+
+// SECURITY HEADERS CHECK
+async function checkSecurityHeaders(url) {
+  const findings = [];
+  const headers = {
+    'content-security-policy': { name: 'CSP', points: 15 },
+    'x-frame-options': { name: 'X-Frame-Options', points: 10 },
+    'x-content-type-options': { name: 'X-Content-Type-Options', points: 10 },
+    'strict-transport-security': { name: 'HSTS', points: 10 },
+    'referrer-policy': { name: 'Referrer-Policy', points: 5 }
+  };
+
+  try {
+    const response = await fetch(url, {
+      method: 'HEAD'
+    });
+
+    let totalPoints = 0;
+    for (const [headerKey, headerInfo] of Object.entries(headers)) {
+      if (!response.headers.get(headerKey)) {
+        totalPoints += headerInfo.points;
+        findings.push({
+          name: headerInfo.name,
+          points: headerInfo.points
+        });
+      }
+    }
+
+    return { totalPoints, findings };
+  } catch (e) {
+    return { totalPoints: 0, findings: [] };
+  }
+}
+
+// DOMAIN INTELLIGENCE
+function checkSuspiciousTLD(url) {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname;
+    const tld = hostname.split('.').pop().toLowerCase();
+
+    if (SUSPICIOUS_TLDS.includes(tld)) {
+      return { found: true, points: 20 };
+    }
+  } catch (e) {
+    //
+  }
+  return { found: false, points: 0 };
+}
+
+function checkPunycode(url) {
+  if (url.includes('xn--')) {
+    return { found: true, points: 25 };
+  }
+  return { found: false, points: 0 };
+}
+
+// REPUTATION HEURISTICS
+function checkURLLength(url) {
+  if (url.length > 75) {
+    return { found: true, points: 10 };
+  }
+  return { found: false, points: 0 };
+}
+
+function checkEncodedCharacters(url) {
+  if (url.includes('%')) {
+    return { found: true, points: 12 };
+  }
+  return { found: false, points: 0 };
+}
+
+// SCORING
 function getRiskLevel(score) {
   if (score <= 30) return 'Low';
   if (score <= 70) return 'Medium';
   return 'High';
 }
 
-function analyzeUrl(url) {
+// MAIN ANALYSIS
+async function analyzeUrl(url) {
   const findings = [];
   let totalScore = 0;
 
-  const ipCheck = checkIPAddress(url);
-  if (ipCheck.found) {
-    totalScore += ipCheck.points;
+  // 1. PHISHING RISK
+  const checks = [
+    { name: 'IP Address', fn: checkIPAddress, category: 'Phishing Risk' },
+    { name: 'At Symbol', fn: checkAtSymbol, category: 'Phishing Risk' },
+    { name: 'Excessive Subdomains', fn: checkSubdomains, category: 'Phishing Risk' },
+    { name: 'Suspicious Keywords', fn: checkSuspiciousKeywords, category: 'Phishing Risk' },
+    { name: 'Domain Length', fn: checkDomainLength, category: 'Phishing Risk' },
+    { name: 'No HTTPS', fn: checkHTTPS, category: 'HTTPS & SSL' },
+    { name: 'Suspicious TLD', fn: checkSuspiciousTLD, category: 'Domain Intelligence' },
+    { name: 'Punycode Domain', fn: checkPunycode, category: 'Domain Intelligence' },
+    { name: 'Long URL', fn: checkURLLength, category: 'Reputation' },
+    { name: 'Encoded Characters', fn: checkEncodedCharacters, category: 'Reputation' }
+  ];
+
+  for (const check of checks) {
+    const result = check.fn(url);
+    if (result.found) {
+      totalScore += result.points;
+      let description = '';
+      
+      if (check.name === 'IP Address') description = 'URL uses IP address instead of domain name';
+      else if (check.name === 'At Symbol') description = 'URL contains @ symbol (credential phishing)';
+      else if (check.name === 'Excessive Subdomains') description = `URL has ${result.count} subdomains (more than 3)`;
+      else if (check.name === 'Suspicious Keywords') description = 'URL contains suspicious keywords (login, verify, bank, etc.)';
+      else if (check.name === 'Domain Length') description = `Domain name is ${result.length} characters (exceeds 40)`;
+      else if (check.name === 'No HTTPS') description = 'URL does not use HTTPS encryption';
+      else if (check.name === 'Suspicious TLD') description = 'Suspicious top-level domain detected';
+      else if (check.name === 'Punycode Domain') description = 'Punycode detected (xn-- domain)';
+      else if (check.name === 'Long URL') description = 'URL is unusually long (exceeds 75 characters)';
+      else if (check.name === 'Encoded Characters') description = 'URL contains encoded characters (% symbols)';
+
+      findings.push({
+        type: check.name,
+        category: check.category,
+        description: description,
+        points: result.points
+      });
+    }
+  }
+
+  // 2. HTTPS/SSL ASYNC CHECKS
+  const httpsRedirectResult = await checkHTTPSRedirect(url);
+  if (httpsRedirectResult.found) {
+    totalScore += httpsRedirectResult.points;
     findings.push({
-      type: 'IP Address',
-      description: 'URL uses IP address instead of domain name',
-      points: ipCheck.points
+      type: 'No HTTP → HTTPS Redirect',
+      category: 'HTTPS & SSL',
+      description: 'HTTP does not redirect to HTTPS',
+      points: httpsRedirectResult.points
     });
   }
 
-  const httpsCheck = checkNoHTTPS(url);
-  if (httpsCheck.found) {
-    totalScore += httpsCheck.points;
+  const hstsResult = await checkHSTS(url);
+  if (hstsResult.found) {
+    totalScore += hstsResult.points;
     findings.push({
-      type: 'No HTTPS',
-      description: 'URL does not use HTTPS encryption',
-      points: httpsCheck.points
+      type: 'No HSTS Header',
+      category: 'HTTPS & SSL',
+      description: 'HSTS (HTTP Strict Transport Security) header missing',
+      points: hstsResult.points
     });
   }
 
-  const atCheck = checkAtSymbol(url);
-  if (atCheck.found) {
-    totalScore += atCheck.points;
+  // 3. SECURITY HEADERS
+  const headersResult = await checkSecurityHeaders(url);
+  totalScore += headersResult.totalPoints;
+  for (const header of headersResult.findings) {
     findings.push({
-      type: 'At Symbol',
-      description: 'URL contains @ symbol (possible credential phishing)',
-      points: atCheck.points
-    });
-  }
-
-  const subdomainCheck = checkSubdomains(url);
-  if (subdomainCheck.found) {
-    totalScore += subdomainCheck.points;
-    findings.push({
-      type: 'Excessive Subdomains',
-      description: `URL has ${subdomainCheck.count} subdomains (more than 3)`,
-      points: subdomainCheck.points
-    });
-  }
-
-  const keywordCheck = checkSuspiciousKeywords(url);
-  if (keywordCheck.found) {
-    totalScore += keywordCheck.points;
-    findings.push({
-      type: 'Suspicious Keywords',
-      description: 'URL contains suspicious keywords',
-      points: keywordCheck.points
-    });
-  }
-
-  const lengthCheck = checkDomainLength(url);
-  if (lengthCheck.found) {
-    totalScore += lengthCheck.points;
-    findings.push({
-      type: 'Domain Length',
-      description: `Domain name is ${lengthCheck.length} characters (exceeds 40)`,
-      points: lengthCheck.points
+      type: `Missing ${header.name}`,
+      category: 'Security Headers',
+      description: `Security header ${header.name} is missing`,
+      points: header.points
     });
   }
 
   return {
-    score: totalScore,
-    riskLevel: getRiskLevel(totalScore),
+    score: Math.min(totalScore, 100),
+    riskLevel: getRiskLevel(Math.min(totalScore, 100)),
     findings: findings
   };
 }
@@ -179,7 +311,7 @@ export default {
           );
         }
 
-        const result = analyzeUrl(url);
+        const result = await analyzeUrl(url);
 
         return new Response(
           JSON.stringify({

@@ -37,6 +37,7 @@ function displayResults(result) {
   } else {
     findingsList.innerHTML = result.findings.map(finding => `
       <div class="finding-item">
+        <div class="finding-category">${escapeHtml(finding.category)}</div>
         <div class="finding-type">${escapeHtml(finding.type)}</div>
         <div class="finding-description">${escapeHtml(finding.description)}</div>
         <span class="finding-points">+${finding.points} pts</span>
