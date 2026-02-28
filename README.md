@@ -2,6 +2,8 @@
 
 A lightweight, serverless URL security scanner that combines advanced threat detection, domain intelligence, and security header analysis to assess potential threats before users interact with links.
 
+🔗 **[Live Demo](https://ghostlink-2zt.pages.dev/)**
+
 ## Features
 
 🎣 **Phishing Detection**
