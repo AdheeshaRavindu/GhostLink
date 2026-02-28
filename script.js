@@ -26,7 +26,9 @@ const TECH_GLOSSARY = {
   'Registrable Domain': 'Main domain without subdomains',
   'TLD Class': 'Type of top-level domain (.com is generic, .uk is country)',
   'Permissions-Policy': 'Restricts browser features and APIs the page can use',
-  'Final URL': 'Destination URL after following all redirects'
+  'Final URL': 'Destination URL after following all redirects',
+  'Numeric Labels': 'Domain labels containing numbers (can indicate suspicion or phishing)',
+  'Hyphenated Labels': 'Domain labels containing hyphens (often used to mimic legitimate domains)'
 };
 
 // Function to add tooltip to technical terms
@@ -44,7 +46,7 @@ function addTooltipsToText(text) {
   const termsToReplace = [
     'Punycode', 'HTTPS', 'HTTP', 'SSL', 'TLS', 'CSP', 'HSTS', 'X-Frame-Options',
     'X-Content-Type-Options', 'Referrer-Policy', 'Permissions-Policy', 'Subdomain',
-    'Entropy', 'Redirect', 'DNS'
+    'Entropy', 'Redirect', 'DNS', 'Numeric Labels', 'Hyphenated Labels'
   ];
   
   termsToReplace.forEach(term => {
@@ -434,8 +436,8 @@ function displayDetailedInfo(details) {
         domainIntel += `<div class="detail-item"><span class="detail-label">${addTooltip('TLD Class', 'TLD Class')}:</span><span class="detail-value">${escapeHtml(intel.tldClass || 'Unknown')}</span></div>`;
         domainIntel += `<div class="detail-item"><span class="detail-label">${addTooltip('Subdomain', 'Subdomain')} Profile:</span><span class="detail-value">${escapeHtml(intel.subdomainProfile || 'Unknown')} (${intel.subdomainCount || 0})</span></div>`;
         domainIntel += `<div class="detail-item"><span class="detail-label">Hostname ${addTooltip('Entropy', 'Entropy')}:</span><span class="detail-value">${intel.hostnameEntropy ?? 'N/A'} (${escapeHtml(intel.entropyLevel || 'Unknown')})</span></div>`;
-        domainIntel += `<div class="detail-item"><span class="detail-label">Hyphenated Labels:</span><span class="detail-value">${intel.hasHyphen ? '⚠️ Yes' : '✓ No'}</span></div>`;
-        domainIntel += `<div class="detail-item"><span class="detail-label">Numeric Labels:</span><span class="detail-value">${intel.hasNumericLabel ? '⚠️ Yes' : '✓ No'}</span></div>`;
+        domainIntel += `<div class="detail-item"><span class="detail-label">${addTooltip('Hyphenated Labels', 'Hyphenated Labels')}:</span><span class="detail-value">${intel.hasHyphen ? '⚠️ Yes' : '✓ No'}</span></div>`;
+        domainIntel += `<div class="detail-item"><span class="detail-label">${addTooltip('Numeric Labels', 'Numeric Labels')}:</span><span class="detail-value">${intel.hasNumericLabel ? '⚠️ Yes' : '✓ No'}</span></div>`;
 
         domainIntel += '</div>';
         detailsGrid.innerHTML += domainIntel;
