@@ -846,16 +846,20 @@ body.ui-expanded .info-card p {
     color: #00ff41;
     font-weight: 700;
     cursor: help;
-    transition: all 0.2s ease;
+    transition: color 0.2s ease, transform 0.2s ease;
     display: inline-block;
     font-size: 0.9em;
     margin-left: 2px;
     vertical-align: middle;
-    /* Ensure tooltips can be positioned properly */
     z-index: 1;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    touch-action: manipulation;
 }
 
-.tech-term:hover {
+.tech-term:hover,
+.tech-term:active,
+.tech-term.active {
     color: #00ffff;
     transform: scale(1.15);
 }
@@ -878,14 +882,16 @@ body.ui-expanded .info-card p {
     pointer-events: none;
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
     z-index: 1000;
     box-shadow: 0 4px 15px rgba(0, 255, 65, 0.2);
-    /* Prevent overflow on smaller screens */
     max-width: 90vw;
+    will-change: opacity, visibility;
 }
 
-.tech-term:hover::after {
+.tech-term:hover::after,
+.tech-term:active::after,
+.tech-term.active::after {
     opacity: 1;
     visibility: visible;
 }
@@ -901,44 +907,78 @@ body.ui-expanded .info-card p {
     border-top-color: #00ff41;
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
     z-index: 1001;
     pointer-events: none;
+    will-change: opacity, visibility;
 }
 
-.tech-term:hover::before {
+.tech-term:hover::before,
+.tech-term:active::before,
+.tech-term.active::before {
     opacity: 1;
     visibility: visible;
 }
 
 /* Mobile tooltip adjustments */
 @media (max-width: 600px) {
+    .tech-term {
+        font-size: 1em;
+        margin-left: 3px;
+        padding: 2px;
+        /* Subtle pulse animation to hint it's tappable */
+        animation: subtle-pulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes subtle-pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.85;
+        }
+    }
+    
+    .tech-term.active {
+        animation: none;
+        opacity: 1;
+    }
+    
     .tech-term::after {
         white-space: normal;
-        max-width: calc(100vw - 40px);
+        max-width: min(280px, calc(100vw - 40px));
+        min-width: 200px;
         width: max-content;
         left: 50%;
         transform: translateX(-50%);
         right: auto;
         bottom: auto;
-        top: 125%;
+        top: calc(100% + 8px);
         text-align: center;
-        line-height: 1.4;
+        line-height: 1.45;
         word-wrap: break-word;
+        overflow-wrap: break-word;
+        padding: 12px 14px;
+        font-size: 0.8rem;
+        /* GPU acceleration for smoother animations */
+        transform: translateX(-50%) translateZ(0);
+        backface-visibility: hidden;
+        -webkit-font-smoothing: antialiased;
     }
 
     .tech-term::before {
         bottom: auto;
-        top: 120%;
+        top: calc(100% + 2px);
         border-top-color: transparent;
         border-bottom-color: #00ff41;
         left: 50%;
         transform: translateX(-50%);
+        border-width: 5px;
     }
     
-    /* Prevent horizontal overflow */
-    .tech-term {
-        max-width: 100%;
+    /* Touch-friendly active state */
+    .tech-term:active {
+        transform: scale(1.1);
     }
     
     /* Ensure parent containers don't cause overflow */
@@ -948,6 +988,23 @@ body.ui-expanded .info-card p {
     .phishing-indicator {
         overflow: visible;
         position: relative;
+    }
+    
+    /* Optimize performance - remove will-change when not needed */
+    .tech-term,
+    .tech-term::before,
+    .tech-term::after {
+        will-change: auto;
+    }
+}
+
+/* Tablet tooltip optimizations */
+@media (min-width: 601px) and (max-width: 768px) {
+    .tech-term::after {
+        max-width: 320px;
+        white-space: normal;
+        word-wrap: break-word;
+        line-height: 1.4;
     }
 }
 

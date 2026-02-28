@@ -31,10 +31,44 @@ const TECH_GLOSSARY = {
   'Hyphenated Labels': 'Domain labels containing hyphens (often used to mimic legitimate domains)'
 };
 
+// Mobile-optimized shorter descriptions
+const TECH_GLOSSARY_MOBILE = {
+  'HTTPS': 'Secure encrypted connection',
+  'HTTP': 'Unencrypted (insecure)',
+  'SSL': 'Security encryption protocol',
+  'TLS': 'Newer version of SSL',
+  'CSP': 'Blocks malicious scripts',
+  'HSTS': 'Forces HTTPS connection',
+  'X-Frame-Options': 'Prevents clickjacking',
+  'Punycode': 'International characters (xn--)',
+  'Subdomain': 'Part before main domain',
+  'Entropy': 'Randomness level (higher = suspicious)',
+  'X-Content-Type-Options': 'Prevents content misinterpretation',
+  'Referrer-Policy': 'Controls link info sharing',
+  'Port': 'Connection point (443=HTTPS, 80=HTTP)',
+  'Query Parameters': 'Extra URL data after ?',
+  'Redirect': 'Auto-forward to another URL',
+  'Charset': 'Character encoding (UTF-8)',
+  'Protocol': 'HTTP or HTTPS method',
+  'DNS Lookup': 'Finds server IP from domain',
+  'Registrable Domain': 'Main domain only',
+  'TLD Class': 'Domain type (.com, .uk, etc)',
+  'Permissions-Policy': 'Restricts browser features',
+  'Final URL': 'Destination after redirects',
+  'Numeric Labels': 'Numbers in domain (suspicious)',
+  'Hyphenated Labels': 'Hyphens in domain (used for mimicking)'
+};
+
+// Detect if device is mobile
+function isMobileDevice() {
+  return window.innerWidth <= 600 || ('ontouchstart' in window);
+}
+
 // Function to add tooltip to technical terms
 function addTooltip(text, term) {
-  if (TECH_GLOSSARY[term]) {
-    return `${text} <span class="tech-term" title="${TECH_GLOSSARY[term]}">ⓘ</span>`;
+  const glossary = isMobileDevice() ? TECH_GLOSSARY_MOBILE : TECH_GLOSSARY;
+  if (glossary[term]) {
+    return `${text} <span class="tech-term" title="${glossary[term]}">ⓘ</span>`;
   }
   return text;
 }
@@ -42,6 +76,7 @@ function addTooltip(text, term) {
 // Function to replace technical terms in text with tooltips
 function addTooltipsToText(text) {
   let result = text;
+  const glossary = isMobileDevice() ? TECH_GLOSSARY_MOBILE : TECH_GLOSSARY;
   // Add tooltips for common technical terms found in text
   const termsToReplace = [
     'Punycode', 'HTTPS', 'HTTP', 'SSL', 'TLS', 'CSP', 'HSTS', 'X-Frame-Options',
@@ -51,10 +86,10 @@ function addTooltipsToText(text) {
   
   termsToReplace.forEach(term => {
     // Only replace if term exists and hasn't already been replaced
-    if (TECH_GLOSSARY[term] && !result.includes(`${term} <span class="tech-term"`)) {
+    if (glossary[term] && !result.includes(`${term} <span class="tech-term"`)) {
       // Create regex with word boundaries to avoid partial matches
       const regex = new RegExp(`\\b${term}\\b(?!\\s*<span class="tech-term")`, 'g');
-      result = result.replace(regex, `${term} <span class="tech-term" title="${TECH_GLOSSARY[term]}">ⓘ</span>`);
+      result = result.replace(regex, `${term} <span class="tech-term" title="${glossary[term]}">ⓘ</span>`);
     }
   });
   
@@ -71,6 +106,49 @@ analyzeBtn.addEventListener('click', handleAnalyze);
 urlInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') handleAnalyze();
 });
+
+// Touch support for tooltips on mobile
+let activeTooltip = null;
+document.addEventListener('DOMContentLoaded', () => {
+    initializeTooltipTouchSupport();
+});
+
+function initializeTooltipTouchSupport() {
+    // Delegate touch events for tooltips
+    document.body.addEventListener('touchstart', (e) => {
+        const target = e.target.closest('.tech-term');
+        
+        if (target) {
+            e.preventDefault();
+            
+            // Remove active class from previous tooltip
+            if (activeTooltip && activeTooltip !== target) {
+                activeTooltip.classList.remove('active');
+            }
+            
+            // Toggle active class
+            if (target.classList.contains('active')) {
+                target.classList.remove('active');
+                activeTooltip = null;
+            } else {
+                target.classList.add('active');
+                activeTooltip = target;
+                
+                // Auto-hide after 3 seconds
+                setTimeout(() => {
+                    if (activeTooltip === target) {
+                        target.classList.remove('active');
+                        activeTooltip = null;
+                    }
+                }, 3000);
+            }
+        } else if (activeTooltip) {
+            // Close tooltip when tapping outside
+            activeTooltip.classList.remove('active');
+            activeTooltip = null;
+        }
+    }, { passive: false });
+}
 
 setUiExpanded(false);
 
