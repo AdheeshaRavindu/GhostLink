@@ -361,16 +361,12 @@ async function extractPageMetadata(url) {
 // FETCH DOMAIN AGE FROM RDAP (FREE - NO API KEY REQUIRED)
 async function fetchDomainAge(domain) {
   try {
-    // Extract TLD to determine RDAP server
-    const tld = domain.split('.').pop().toLowerCase();
-    
-    // RDAP Bootstrap service (redirects to correct RDAP server)
+    // RDAP API endpoint
     const rdapUrl = `https://rdap.org/domain/${domain}`;
     
     const response = await fetch(rdapUrl, {
       method: 'GET',
-      headers: { 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(5000)
+      headers: { 'Accept': 'application/json' }
     });
 
     if (!response.ok) return null;
@@ -379,14 +375,33 @@ async function fetchDomainAge(domain) {
     
     // RDAP returns events array with registration date
     const events = data?.events || [];
-    const registrationEvent = events.find(e => e.eventAction === 'registration');
+    
+    // Find registration event
+    let registrationEvent = events.find(e => e.eventAction === 'registration');
+    
+    // If not found, try other common event types
+    if (!registrationEvent) {
+      registrationEvent = events.find(e => 
+        e.eventAction === 'registrationCreation' || 
+        e.eventAction === 'creation' ||
+        e.eventAction === 'registered'
+      );
+    }
     
     if (!registrationEvent?.eventDate) return null;
 
     const createdDate = registrationEvent.eventDate;
     const created = new Date(createdDate);
+    
+    // Validate date
+    if (isNaN(created.getTime())) return null;
+    
     const now = new Date();
     const ageInDays = Math.floor((now - created) / (1000 * 60 * 60 * 24));
+    
+    // Sanity check - age should be positive and less than 35 years
+    if (ageInDays < 0 || ageInDays > 12775) return null;
+    
     const ageInYears = (ageInDays / 365).toFixed(1);
 
     return {
@@ -396,7 +411,8 @@ async function fetchDomainAge(domain) {
       ageFormatted: ageInYears >= 1 ? `${ageInYears} years` : `${ageInDays} days`
     };
   } catch (e) {
-    return null; // RDAP lookup failed
+    // RDAP lookup failed, continue without it
+    return null;
   }
 }
 
