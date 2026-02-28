@@ -361,27 +361,39 @@ async function extractPageMetadata(url) {
 // FETCH DOMAIN AGE FROM RDAP (FREE - NO API KEY REQUIRED)
 async function fetchDomainAge(domain) {
   try {
-    // Try primary RDAP endpoint
-    let rdapUrl = `https://rdap.org/domain/${domain}`;
-    
-    let response = await fetch(rdapUrl, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' }
-    });
+    // List of RDAP endpoints to try in order
+    const rdapEndpoints = [
+      `https://rdap.org/domain/${domain}`,
+      `https://rdap.arin.net/registry/domain/${domain}`,
+      `https://rdap.apnic.net/domain/${domain}`,
+      `https://rdap.ripencc.net/domain/${domain}`,
+      `https://rdap.lacnic.net/domain/${domain}`,
+      `https://rdap.afrinic.net/domain/${domain}`
+    ];
 
-    // If primary fails, try ARIN RDAP as fallback
-    if (!response.ok) {
-      rdapUrl = `https://rdap.arin.net/registry/domain/${domain}`;
-      response = await fetch(rdapUrl, {
-        method: 'GET',
-        headers: { 'Accept': 'application/json' }
-      });
+    let data = null;
+    let response = null;
+
+    // Try each endpoint
+    for (const endpoint of rdapEndpoints) {
+      try {
+        response = await fetch(endpoint, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
+        });
+
+        if (response.ok) {
+          data = await response.json();
+          break; // Success, exit loop
+        }
+      } catch (e) {
+        // Try next endpoint
+        continue;
+      }
     }
 
-    if (!response.ok) return null;
+    if (!data) return null;
 
-    const data = await response.json();
-    
     // RDAP returns events array with registration date
     const events = data?.events || [];
     
@@ -393,8 +405,9 @@ async function fetchDomainAge(domain) {
       'registrationCreation',
       'creation',
       'registered',
+      'expirationTime',
       'lastUpdateOfRegistrar',
-      'expirationTime'
+      'lastChangeOfRegistrar'
     ];
     
     for (const actionType of eventActionMatch) {

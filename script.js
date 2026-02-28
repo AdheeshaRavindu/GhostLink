@@ -354,15 +354,20 @@ function displayDetailedInfo(details) {
     }
 
     // Domain Intelligence
-    if (details.server && details.server.domainAge) {
-        const age = details.server.domainAge;
+    if (details.server) {
         let domainIntel = `<div class="detail-section"><div class="detail-title">📊 Domain Intelligence</div><div class="detail-subtitle">Domain registration history and reputation indicators</div>`;
         
-        domainIntel += `<div class="detail-item"><span class="detail-label">Domain Age:</span><span class="detail-value">${escapeHtml(age.ageFormatted)} ${age.ageInDays >= 365 ? '✓ Established' : '⚠️ Young'}</span></div>`;
-        domainIntel += `<div class="detail-item"><span class="detail-label">Registration Date:</span><span class="detail-value">${new Date(age.createdDate).toLocaleDateString()}</span></div>`;
-        domainIntel += `<div class="detail-item"><span class="detail-label">Days Since Registration:</span><span class="detail-value">${age.ageInDays} days</span></div>`;
-        domainIntel += `<div class="detail-item"><span class="detail-label">Registration Status:</span><span class="detail-value">${age.ageInDays >= 365 ? '✓ Legitimate (Well established)' : age.ageInDays >= 90 ? '⚠️ Moderately New' : '🚩 Very New (Recently registered)'}</span></div>`;
-        domainIntel += `<div class="detail-item"><span class="detail-label">Trust Indicator:</span><span class="detail-value">${age.ageInYears >= 5 ? '✓✓ High Trust' : age.ageInYears >= 1 ? '✓ Medium Trust' : '⚠️ Low Trust (Too New)'}</span></div>`;
+        if (details.server.domainAge) {
+            const age = details.server.domainAge;
+            domainIntel += `<div class="detail-item"><span class="detail-label">Domain Age:</span><span class="detail-value">${escapeHtml(age.ageFormatted)} ${age.ageInDays >= 365 ? '✓ Established' : '⚠️ Young'}</span></div>`;
+            domainIntel += `<div class="detail-item"><span class="detail-label">Registration Date:</span><span class="detail-value">${new Date(age.createdDate).toLocaleDateString()}</span></div>`;
+            domainIntel += `<div class="detail-item"><span class="detail-label">Days Since Registration:</span><span class="detail-value">${age.ageInDays} days</span></div>`;
+            domainIntel += `<div class="detail-item"><span class="detail-label">Registration Status:</span><span class="detail-value">${age.ageInDays >= 365 ? '✓ Legitimate (Well established)' : age.ageInDays >= 90 ? '⚠️ Moderately New' : '🚩 Very New (Recently registered)'}</span></div>`;
+            domainIntel += `<div class="detail-item"><span class="detail-label">Trust Indicator:</span><span class="detail-value">${age.ageInYears >= 5 ? '✓✓ High Trust' : age.ageInYears >= 1 ? '✓ Medium Trust' : '⚠️ Low Trust (Too New)'}</span></div>`;
+        } else {
+            domainIntel += `<div class="detail-item"><span class="detail-label">Domain Age:</span><span class="detail-value">ⓘ Not Available (Registry does not support RDAP)</span></div>`;
+            domainIntel += `<div class="detail-item"><span class="detail-label">Note:</span><span class="detail-value">Some domain registries do not provide registration data via RDAP</span></div>`;
+        }
         
         domainIntel += '</div>';
         detailsGrid.innerHTML += domainIntel;
