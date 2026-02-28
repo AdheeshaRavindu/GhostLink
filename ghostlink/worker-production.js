@@ -210,6 +210,78 @@ function calculateURLEntropy(url) {
   }
 }
 
+function calculateStringEntropy(value) {
+  if (!value || value.length === 0) return 0;
+
+  const charFreq = {};
+  for (const char of value) {
+    charFreq[char] = (charFreq[char] || 0) + 1;
+  }
+
+  let entropy = 0;
+  const len = value.length;
+
+  for (const freq of Object.values(charFreq)) {
+    const p = freq / len;
+    entropy -= p * Math.log2(p);
+  }
+
+  return entropy;
+}
+
+function analyzeDomainIntelligence(url) {
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    const labels = hostname.split('.').filter(Boolean);
+    const tld = labels.length > 1 ? labels[labels.length - 1] : null;
+
+    const knownSecondLevelSuffixes = new Set([
+      'co.uk', 'org.uk', 'gov.uk', 'ac.uk',
+      'com.au', 'net.au', 'org.au',
+      'co.nz', 'com.br', 'com.mx',
+      'co.jp', 'co.kr', 'com.sg', 'com.my', 'com.tr'
+    ]);
+
+    let registrableDomain = hostname;
+    if (labels.length >= 2) {
+      const lastTwo = labels.slice(-2).join('.');
+      if (labels.length >= 3 && knownSecondLevelSuffixes.has(lastTwo)) {
+        registrableDomain = labels.slice(-3).join('.');
+      } else {
+        registrableDomain = lastTwo;
+      }
+    }
+
+    const subdomainCount = Math.max(labels.length - registrableDomain.split('.').length, 0);
+    const hasHyphen = labels.some(label => label.includes('-'));
+    const hasNumericLabel = labels.some(label => /\d/.test(label));
+    const hostnameEntropy = calculateStringEntropy(hostname.replace(/\./g, ''));
+
+    let tldClass = 'Unknown';
+    if (tld) {
+      tldClass = tld.length === 2 ? 'Country Code (ccTLD)' : 'Generic (gTLD)';
+    }
+
+    let entropyLevel = 'Low';
+    if (hostnameEntropy >= 3.5) entropyLevel = 'High';
+    else if (hostnameEntropy >= 3.0) entropyLevel = 'Medium';
+
+    return {
+      registrableDomain,
+      tld,
+      tldClass,
+      subdomainCount,
+      subdomainProfile: subdomainCount === 0 ? 'Apex Domain' : (subdomainCount <= 2 ? 'Standard Subdomain' : 'Deep Subdomain Chain'),
+      hasHyphen,
+      hasNumericLabel,
+      hostnameEntropy: parseFloat(hostnameEntropy.toFixed(2)),
+      entropyLevel
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
 // REDIRECT CHAIN ANALYSIS
 async function checkRedirectChain(url) {
   try {
@@ -358,106 +430,6 @@ async function extractPageMetadata(url) {
   }
 }
 
-// FETCH DOMAIN AGE FROM RDAP (FREE - NO API KEY REQUIRED)
-async function fetchDomainAge(domain) {
-  try {
-    // List of RDAP endpoints to try in order
-    const rdapEndpoints = [
-      `https://rdap.org/domain/${domain}`,
-      `https://rdap.arin.net/registry/domain/${domain}`,
-      `https://rdap.apnic.net/domain/${domain}`,
-      `https://rdap.ripencc.net/domain/${domain}`,
-      `https://rdap.lacnic.net/domain/${domain}`,
-      `https://rdap.afrinic.net/domain/${domain}`
-    ];
-
-    let data = null;
-    let response = null;
-
-    // Try each endpoint
-    for (const endpoint of rdapEndpoints) {
-      try {
-        response = await fetch(endpoint, {
-          method: 'GET',
-          headers: { 'Accept': 'application/json' }
-        });
-
-        if (response.ok) {
-          data = await response.json();
-          break; // Success, exit loop
-        }
-      } catch (e) {
-        // Try next endpoint
-        continue;
-      }
-    }
-
-    if (!data) return null;
-
-    // RDAP returns events array with registration date
-    const events = data?.events || [];
-    
-    let registrationEvent = null;
-    
-    // Look for registration event - try multiple possible event action values
-    const eventActionMatch = [
-      'registration',
-      'registrationCreation',
-      'creation',
-      'registered',
-      'expirationTime',
-      'lastUpdateOfRegistrar',
-      'lastChangeOfRegistrar'
-    ];
-    
-    for (const actionType of eventActionMatch) {
-      registrationEvent = events.find(e => 
-        e.eventAction === actionType && e.eventDate
-      );
-      if (registrationEvent) break;
-    }
-    
-    // If still not found, look for first event with a date
-    if (!registrationEvent) {
-      registrationEvent = events.find(e => e.eventDate);
-    }
-    
-    if (!registrationEvent?.eventDate) {
-      // Try alternate response format (some registries use different structure)
-      const createdDate = data?.createdDate || data?.created || data?.registryData?.createdDate;
-      if (createdDate) {
-        registrationEvent = { eventDate: createdDate };
-      } else {
-        return null;
-      }
-    }
-
-    const createdDate = registrationEvent.eventDate;
-    const created = new Date(createdDate);
-    
-    // Validate date
-    if (isNaN(created.getTime())) return null;
-    
-    const now = new Date();
-    const ageInDays = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
-    
-    // Sanity check - age should be positive and less than 35 years
-    if (ageInDays < 0 || ageInDays > 12775) return null;
-    
-    const ageInYears = parseFloat((ageInDays / 365).toFixed(1));
-
-    return {
-      createdDate: createdDate,
-      ageInDays: ageInDays,
-      ageInYears: ageInYears,
-      ageFormatted: ageInYears >= 1 ? `${ageInYears} years` : `${ageInDays} days`
-    };
-  } catch (e) {
-    // RDAP lookup failed, continue without it
-    return null;
-  }
-}
-
 // EXTRACT SERVER INFO
 async function extractServerInfo(url, env) {
   const serverInfo = {
@@ -481,8 +453,7 @@ async function extractServerInfo(url, env) {
     lastModified: null,
     age: null,
     finalUrl: url,
-    sslInfo: null,
-    domainAge: null
+    sslInfo: null
   };
 
   const startTime = Date.now();
@@ -583,15 +554,6 @@ async function extractServerInfo(url, env) {
     if (response.headers.get('x-powered-by')?.includes('Express')) serverInfo.technologies.push('Express.js');
     if (response.headers.get('x-powered-by')?.includes('PHP')) serverInfo.technologies.push('PHP');
     if (response.headers.get('x-aws-cf-id')) serverInfo.technologies.push('AWS CloudFront');
-
-    // Fetch domain age using free RDAP protocol
-    try {
-      const urlObj = new URL(currentUrl);
-      const domain = urlObj.hostname;
-      serverInfo.domainAge = await fetchDomainAge(domain);
-    } catch (e) {
-      // Domain age lookup failed, continue without it
-    }
 
   } catch (e) {
     serverInfo.responseTime = Date.now() - startTime;
@@ -789,6 +751,7 @@ async function analyzeUrl(url, env) {
   let pageMetadata = null;
   let serverInfo = null;
   let dnsInfo = null;
+  let domainIntel = null;
 
   try {
     urlComponents = analyzeURLComponents(url);
@@ -851,8 +814,7 @@ async function analyzeUrl(url, env) {
       lastModified: null,
       age: null,
       finalUrl: url,
-      sslInfo: null,
-      domainAge: null
+      sslInfo: null
     };
   }
 
@@ -866,12 +828,19 @@ async function analyzeUrl(url, env) {
     };
   }
 
+  try {
+    domainIntel = analyzeDomainIntelligence(serverInfo?.finalUrl || url);
+  } catch (e) {
+    domainIntel = null;
+  }
+
   const details = {
     url: url,
     components: urlComponents,
     metadata: pageMetadata,
     server: serverInfo,
-    dns: dnsInfo
+    dns: dnsInfo,
+    domainIntel: domainIntel
   };
 
   const recommendations = generateSecurityRecommendations(details);
