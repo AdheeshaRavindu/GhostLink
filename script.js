@@ -85,9 +85,16 @@ function displayResults(result) {
 
     // Risk Hints
     const riskHints = {
-        'Low': '✓ URL appears safe',
-        'Medium': '⚠ Some suspicious indicators',
-        'High': '🚨 Multiple security threats detected'
+        'Low': '✓ This URL appears safe to visit',
+        'Medium': '⚠ This URL has some warning signs. Use caution.',
+        'High': '🚨 This URL shows multiple security threats. Do not visit.'
+    };
+
+    // Risk Score Explanations
+    const riskExplanations = {
+        'Low': 'Security score of 0-30: URL passes most security checks',
+        'Medium': 'Security score of 31-70: URL has moderate security concerns',
+        'High': 'Security score above 70: URL has significant security risks'
     };
 
     // Create Score Card
@@ -95,17 +102,21 @@ function displayResults(result) {
     scoreCard.className = 'score-card';
 
     const scoreDisplay = `
-        <div class="score-header">Security Score</div>
-        <div class="score-display">
-            <span class="score-value">${result.score}</span>
-            <span class="score-max">/100</span>
-        </div>
-        <div class="risk-badge" data-level="${riskLevelClass}">
-            ${riskLevel}
-        </div>
-        <div class="score-hint">${riskHints[riskLevel] || 'Unknown risk level'}</div>
-        <div class="score-bar">
-            <div class="score-fill" style="width: 0%"></div>
+        <div class="score-container">
+            <div class="score-section-title">🛡️ Security Analysis Summary</div>
+            <div class="score-explanation">GhostLink analyzed this URL for phishing, malware, security misconfigurations, and other threats.</div>
+            <div class="score-display">
+                <span class="score-value">${result.score}</span>
+                <span class="score-max">/100</span>
+            </div>
+            <div class="risk-badge" data-level="${riskLevelClass}">
+                ${riskLevel}
+            </div>
+            <div class="score-hint">${riskHints[riskLevel] || 'Unknown risk level'}</div>
+            <div class="risk-explanation">${riskExplanations[riskLevel] || 'Unknown'}</div>
+            <div class="score-bar">
+                <div class="score-fill" style="width: 0%"></div>
+            </div>
         </div>
     `;
 
@@ -129,12 +140,16 @@ function displayResults(result) {
 
         statsGrid.innerHTML = `
             <div class="stat-card">
+                <span class="stat-icon">⚠️</span>
                 <span class="stat-value">${threatCount}</span>
-                <span class="stat-label">Threats Found</span>
+                <span class="stat-label">Issues Detected</span>
+                <span class="stat-desc">Security concerns found</span>
             </div>
             <div class="stat-card">
+                <span class="stat-icon">📊</span>
                 <span class="stat-value">${categorySet.size}</span>
-                <span class="stat-label">Categories</span>
+                <span class="stat-label">Risk Categories</span>
+                <span class="stat-desc">Types of issues</span>
             </div>
         `;
 
@@ -150,7 +165,10 @@ function displayResults(result) {
     if (result.findings && result.findings.length > 0) {
         const findingsCard = document.createElement('div');
         findingsCard.className = 'findings-card';
-        findingsCard.innerHTML = '<div class="findings-header">Security Findings</div>';
+        findingsCard.innerHTML = `
+            <div class="findings-header">🔍 Security Findings</div>
+            <div class="findings-description">Details of each security issue detected. Issues that remove more points are more serious.</div>
+        `;
 
         const findingsList = document.createElement('div');
         findingsList.className = 'findings-list';
@@ -178,10 +196,18 @@ function displayResults(result) {
                 const item = document.createElement('div');
                 item.className = 'finding-item';
 
+                // Determine severity based on points
+                let severity = 'low';
+                if (finding.points >= 25) severity = 'high';
+                else if (finding.points >= 15) severity = 'medium';
+
                 item.innerHTML = `
-                    <div class="finding-type">${escapeHtml(finding.type)}</div>
+                    <div class="finding-header-row">
+                        <div class="finding-type">${escapeHtml(finding.type)}</div>
+                        <span class="finding-severity severity-${severity}" title="Severity: ${severity.charAt(0).toUpperCase() + severity.slice(1)}">${finding.points > 0 ? '!' : '✓'}</span>
+                    </div>
                     <div class="finding-description">${escapeHtml(finding.description)}</div>
-                    <div class="finding-points">-${finding.points} points</div>
+                    <div class="finding-points"><span class="points-icon">📉</span> <span class="points-value">-${finding.points} points</span></div>
                 `;
 
                 categoryGroup.appendChild(item);
@@ -209,7 +235,10 @@ function displayResults(result) {
 function displayDetailedInfo(details) {
     const detailsCard = document.createElement('div');
     detailsCard.className = 'details-card';
-    detailsCard.innerHTML = '<div class="details-header">🔍 URL Intelligence</div>';
+    detailsCard.innerHTML = `
+        <div class="details-header">🔍 URL Intelligence</div>
+        <div class="details-description">Technical information about this URL including its structure, origin server, and security configuration.</div>
+    `;
 
     const detailsGrid = document.createElement('div');
     detailsGrid.className = 'details-grid';
@@ -220,8 +249,9 @@ function displayDetailedInfo(details) {
         const urlInfo = `
             <div class="detail-section">
                 <div class="detail-title">🔗 URL Structure</div>
+                <div class="detail-subtitle">How this URL is organized</div>
                 <div class="detail-item">
-                    <span class="detail-label">Protocol:</span>
+                    <span class="detail-label">Protocol <span class="detail-tooltip" title="HTTP (unencrypted) or HTTPS (encrypted & secure)">ⓘ</span>:</span>
                     <span class="detail-value">${escapeHtml(comp.protocol)}</span>
                 </div>
                 <div class="detail-item">
@@ -229,7 +259,7 @@ function displayDetailedInfo(details) {
                     <span class="detail-value">${escapeHtml(comp.domain)}</span>
                 </div>
                 <div class="detail-item">
-                    <span class="detail-label">Port:</span>
+                    <span class="detail-label">Port <span class="detail-tooltip" title="Network connection point (443 for HTTPS, 80 for HTTP)">ⓘ</span>:</span>
                     <span class="detail-value">${comp.port}</span>
                 </div>
                 <div class="detail-item">
@@ -237,7 +267,7 @@ function displayDetailedInfo(details) {
                     <span class="detail-value">${comp.pathDepth} segment${comp.pathDepth !== 1 ? 's' : ''}</span>
                 </div>
                 <div class="detail-item">
-                    <span class="detail-label">Query Parameters:</span>
+                    <span class="detail-label">Query Parameters <span class="detail-tooltip" title="Extra data sent in the URL after ?">ⓘ</span>:</span>
                     <span class="detail-value">${comp.queryParamCount}</span>
                 </div>
                 <div class="detail-item">
@@ -252,14 +282,14 @@ function displayDetailedInfo(details) {
     // Page Metadata
     if (details.metadata) {
         const meta = details.metadata;
-        let metaInfo = '<div class="detail-section"><div class="detail-title">📄 Page Metadata</div>';
+        let metaInfo = `<div class="detail-section"><div class="detail-title">📄 Page Metadata</div><div class="detail-subtitle">Information from the website's HTML</div>`;
         
-        if (meta.title) metaInfo += `<div class="detail-item"><span class="detail-label">Title:</span><span class="detail-value">${escapeHtml(meta.title)}</span></div>`;
+        if (meta.title) metaInfo += `<div class="detail-item"><span class="detail-label">Page Title:</span><span class="detail-value">${escapeHtml(meta.title)}</span></div>`;
         if (meta.description) metaInfo += `<div class="detail-item"><span class="detail-label">Description:</span><span class="detail-value">${escapeHtml(meta.description)}</span></div>`;
         if (meta.language) metaInfo += `<div class="detail-item"><span class="detail-label">Language:</span><span class="detail-value">${escapeHtml(meta.language)}</span></div>`;
-        if (meta.charset) metaInfo += `<div class="detail-item"><span class="detail-label">Charset:</span><span class="detail-value">${escapeHtml(meta.charset)}</span></div>`;
-        if (meta.contentType) metaInfo += `<div class="detail-item"><span class="detail-label">Content-Type:</span><span class="detail-value">${escapeHtml(meta.contentType)}</span></div>`;
-        metaInfo += `<div class="detail-item"><span class="detail-label">Has Form:</span><span class="detail-value">${meta.hasForm ? '⚠️ Yes' : '✓ No'}</span></div>`;
+        if (meta.charset) metaInfo += `<div class="detail-item"><span class="detail-label">Character Set:</span><span class="detail-value">${escapeHtml(meta.charset)}</span></div>`;
+        if (meta.contentType) metaInfo += `<div class="detail-item"><span class="detail-label">Content Type:</span><span class="detail-value">${escapeHtml(meta.contentType)}</span></div>`;
+        metaInfo += `<div class="detail-item"><span class="detail-label">Has Login Form:</span><span class="detail-value">${meta.hasForm ? '⚠️ Yes (check carefully)' : '✓ No'}</span></div>`;
         
         metaInfo += '</div>';
         detailsGrid.innerHTML += metaInfo;
@@ -268,14 +298,14 @@ function displayDetailedInfo(details) {
     // Server Information
     if (details.server) {
         const server = details.server;
-        let serverInfo = '<div class="detail-section"><div class="detail-title">🖥️ Server Information</div>';
+        let serverInfo = `<div class="detail-section"><div class="detail-title">🖥️ Server Information</div><div class="detail-subtitle">Details about the server hosting this website</div>`;
         
-        if (server.server) serverInfo += `<div class="detail-item"><span class="detail-label">Server:</span><span class="detail-value">${escapeHtml(server.server)}</span></div>`;
-        if (server.statusCode) serverInfo += `<div class="detail-item"><span class="detail-label">Status:</span><span class="detail-value">${server.statusCode} ${escapeHtml(server.statusMessage || '')}</span></div>`;
-        if (server.responseTime) serverInfo += `<div class="detail-item"><span class="detail-label">Response Time:</span><span class="detail-value">${server.responseTime}ms</span></div>`;
-        if (server.technologies.length > 0) serverInfo += `<div class="detail-item"><span class="detail-label">Technologies:</span><span class="detail-value">${escapeHtml(server.technologies.join(', '))}</span></div>`;
-        if (server.cacheControl) serverInfo += `<div class="detail-item"><span class="detail-label">Cache:</span><span class="detail-value">${escapeHtml(server.cacheControl.substring(0, 50))}</span></div>`;
-        if (server.contentEncoding) serverInfo += `<div class="detail-item"><span class="detail-label">Encoding:</span><span class="detail-value">${escapeHtml(server.contentEncoding)}</span></div>`;
+        if (server.server) serverInfo += `<div class="detail-item"><span class="detail-label">Server Software:</span><span class="detail-value">${escapeHtml(server.server)}</span></div>`;
+        if (server.statusCode) serverInfo += `<div class="detail-item"><span class="detail-label">HTTP Status:</span><span class="detail-value">${server.statusCode} ${escapeHtml(server.statusMessage || '')} ${server.statusCode === 200 ? '✓' : '⚠️'}</span></div>`;
+        if (server.responseTime) serverInfo += `<div class="detail-item"><span class="detail-label">Response Time:</span><span class="detail-value">${server.responseTime}ms ${server.responseTime < 1000 ? '✓ Fast' : '⚠️ Slow'}</span></div>`;
+        if (server.technologies.length > 0) serverInfo += `<div class="detail-item"><span class="detail-label">Web Technologies:</span><span class="detail-value">${escapeHtml(server.technologies.join(', '))}</span></div>`;
+        if (server.cacheControl) serverInfo += `<div class="detail-item"><span class="detail-label">Cache Control:</span><span class="detail-value">${escapeHtml(server.cacheControl.substring(0, 50))}</span></div>`;
+        if (server.contentEncoding) serverInfo += `<div class="detail-item"><span class="detail-label">Compression:</span><span class="detail-value">${escapeHtml(server.contentEncoding)}</span></div>`;
         
         serverInfo += '</div>';
         detailsGrid.innerHTML += serverInfo;
@@ -284,12 +314,21 @@ function displayDetailedInfo(details) {
     // Security Headers
     if (details.server && details.server.securityHeaders) {
         const headers = details.server.securityHeaders;
-        let securityInfo = '<div class="detail-section"><div class="detail-title">🔒 Security Headers</div>';
+        let securityInfo = `<div class="detail-section"><div class="detail-title">🔒 Security Headers</div><div class="detail-subtitle">Protection measures implemented by the server. ✓ = Good, ✗ = Missing</div>`;
         
         for (const [headerName, headerStatus] of Object.entries(headers)) {
             const isPresent = headerStatus.includes('✓');
             const statusClass = isPresent ? 'header-present' : 'header-missing';
-            securityInfo += `<div class="detail-item"><span class="detail-label">${escapeHtml(headerName)}:</span><span class="detail-value ${statusClass}">${escapeHtml(headerStatus)}</span></div>`;
+            const icons = {
+                'Content-Security-Policy': '🛡️',
+                'X-Frame-Options': '🪟',
+                'X-Content-Type-Options': '📝',
+                'Strict-Transport-Security': '🔐',
+                'Referrer-Policy': '👁️',
+                'Permissions-Policy': '⚙️'
+            };
+            const icon = icons[headerName] || '•';
+            securityInfo += `<div class="detail-item"><span class="detail-label">${icon} ${escapeHtml(headerName)}:</span><span class="detail-value ${statusClass}">${escapeHtml(headerStatus)}</span></div>`;
         }
         
         securityInfo += '</div>';
@@ -299,11 +338,11 @@ function displayDetailedInfo(details) {
     // DNS Information
     if (details.dns && (details.dns.resolvedIP || details.dns.dnsLookupTime)) {
         const dns = details.dns;
-        let dnsInfo = '<div class="detail-section"><div class="detail-title">🌐 DNS Information</div>';
+        let dnsInfo = `<div class="detail-section"><div class="detail-title">🌐 DNS Information</div><div class="detail-subtitle">Domain name and server location details</div>`;
         
-        if (dns.domain) dnsInfo += `<div class="detail-item"><span class="detail-label">Domain:</span><span class="detail-value">${escapeHtml(dns.domain)}</span></div>`;
-        if (dns.resolvedIP) dnsInfo += `<div class="detail-item"><span class="detail-label">Resolved:</span><span class="detail-value">${escapeHtml(dns.resolvedIP)}</span></div>`;
-        if (dns.dnsLookupTime) dnsInfo += `<div class="detail-item"><span class="detail-label">Lookup Time:</span><span class="detail-value">${dns.dnsLookupTime}ms</span></div>`;
+        if (dns.domain) dnsInfo += `<div class="detail-item"><span class="detail-label">Domain Name:</span><span class="detail-value">${escapeHtml(dns.domain)}</span></div>`;
+        if (dns.resolvedIP) dnsInfo += `<div class="detail-item"><span class="detail-label">Server Info:</span><span class="detail-value">${escapeHtml(dns.resolvedIP)}</span></div>`;
+        if (dns.dnsLookupTime) dnsInfo += `<div class="detail-item"><span class="detail-label">DNS Lookup Time:</span><span class="detail-value">${dns.dnsLookupTime}ms ${dns.dnsLookupTime < 500 ? '✓ Fast' : '⚠️'}</span></div>`;
         
         dnsInfo += '</div>';
         detailsGrid.innerHTML += dnsInfo;
@@ -319,7 +358,10 @@ function displayRecommendations(recommendations) {
 
     const recCard = document.createElement('div');
     recCard.className = 'recommendations-card';
-    recCard.innerHTML = '<div class="rec-header">💡 Security Recommendations</div>';
+    recCard.innerHTML = `
+        <div class="rec-header">💡 Security Recommendations</div>
+        <div class="rec-description">Actionable steps to improve security when visiting this site or similar URLs</div>
+    `;
 
     const recList = document.createElement('div');
     recList.className = 'rec-list';
@@ -329,10 +371,22 @@ function displayRecommendations(recommendations) {
         item.className = 'rec-item';
         
         let icon = '💡';
-        if (rec.includes('CRITICAL')) icon = '🚨';
-        else if (rec.includes('SSL') || rec.includes('HTTPS') || rec.includes('TLS')) icon = '🔐';
-        else if (rec.includes('slow') || rec.includes('optimization')) icon = '⚡';
+        let priority = 'info';
+        if (rec.includes('CRITICAL')) {
+            icon = '🚨';
+            priority = 'critical';
+        } else if (rec.includes('SSL') || rec.includes('HTTPS') || rec.includes('TLS')) {
+            icon = '🔐';
+            priority = 'high';
+        } else if (rec.includes('slow') || rec.includes('optimization')) {
+            icon = '⚡';
+            priority = 'medium';
+        } else if (rec.includes('Content-Security-Policy') || rec.includes('X-Frame-Options') || rec.includes('HSTS')) {
+            icon = '🛡️';
+            priority = 'high';
+        }
 
+        item.className = `rec-item rec-${priority}`;
         item.innerHTML = `
             <span class="rec-icon">${icon}</span>
             <span class="rec-text">${escapeHtml(rec)}</span>
