@@ -4,64 +4,71 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GhostLink - URL Security Intelligence Scanner</title>
+    <meta name="description" content="Advanced URL security analysis and threat detection system powered by AI-like threat intelligence">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <!-- Header -->
-        <header class="header">
+        <div class="header">
             <div class="header-content">
-                <h1 class="title">🔗 GhostLink</h1>
-                <p class="subtitle">URL Security Intelligence Scanner</p>
+                <h1 class="title">GhostLink</h1>
+                <div class="subtitle">URL Security Intelligence Scanner</div>
+                <p class="description">Advanced threat detection and security analysis for any URL</p>
             </div>
-        </header>
+        </div>
 
-        <!-- Main Dashboard -->
-        <main class="dashboard">
+        <!-- Dashboard -->
+        <div class="dashboard">
             <!-- Input Section -->
-            <section class="input-section">
-                <div class="input-group">
-                    <input 
-                        type="text" 
-                        id="urlInput" 
-                        class="url-input" 
-                        placeholder="Enter URL to analyze..."
-                        aria-label="URL input"
-                    >
-                    <button id="analyzeBtn" class="analyze-btn">Analyze</button>
+            <div class="input-section">
+                <div class="input-wrapper">
+                    <label for="urlInput" class="input-label">URL to Analyze</label>
+                    <div class="input-group">
+                        <input 
+                            type="text" 
+                            id="urlInput" 
+                            class="url-input" 
+                            placeholder="Enter URL (e.g., https://example.com)"
+                            autocomplete="off"
+                        >
+                        <button id="analyzeBtn" class="analyze-btn">Analyze</button>
+                    </div>
+                    <div class="input-hint">
+                        💡 Enter any URL to scan for phishing, malware, and security vulnerabilities
+                    </div>
                 </div>
-            </section>
+            </div>
 
             <!-- Results Section -->
-            <section class="results-section" id="resultsSection" style="display: none;">
-                <!-- Score Display -->
-                <div class="score-card">
-                    <div class="score-header">Security Score</div>
-                    <div class="score-display">
-                        <div class="score-value" id="scoreValue">0</div>
-                        <div class="score-max">/100</div>
-                    </div>
-                    <div class="risk-badge" id="riskBadge" data-level="low">Low</div>
-                </div>
+            <div id="results" style="display: none;"></div>
 
-                <!-- Findings Section -->
-                <div class="findings-card">
-                    <div class="findings-header">Findings</div>
-                    <div class="findings-list" id="findingsList">
-                        <!-- Dynamically populated -->
+            <!-- Info Section -->
+            <div class="info-section">
+                <div class="info-grid">
+                    <div class="info-card">
+                        <span class="info-icon">🎣</span>
+                        <h3>Phishing Detection</h3>
+                        <p>Identifies phishing indicators including IP addresses, HTTP URLs, suspicious domain patterns, and encoded characters</p>
+                    </div>
+                    <div class="info-card">
+                        <span class="info-icon">🔒</span>
+                        <h3>Security Headers</h3>
+                        <p>Analyzes HTTP security headers like HSTS, CSP, X-Frame-Options, and Referrer-Policy to detect configuration vulnerabilities</p>
+                    </div>
+                    <div class="info-card">
+                        <span class="info-icon">🌐</span>
+                        <h3>Domain Intelligence</h3>
+                        <p>Detects suspicious TLDs, homograph attacks using Punycode, uncommon domains, and typosquatting patterns</p>
+                    </div>
+                    <div class="info-card">
+                        <span class="info-icon">🔀</span>
+                        <h3>Redirect Analysis</h3>
+                        <p>Tracks HTTP redirect chains to detect suspicious redirects and multi-stage attack vectors</p>
                     </div>
                 </div>
-            </section>
-
-            <!-- Loading Spinner -->
-            <div class="loading" id="loading" style="display: none;">
-                <div class="spinner"></div>
-                <p>Analyzing URL...</p>
             </div>
-
-            <!-- Error Message -->
-            <div class="error-message" id="errorMessage" style="display: none;"></div>
-        </main>
+        </div>
     </div>
 
     <script src="script.js"></script>

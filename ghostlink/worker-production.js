@@ -177,11 +177,96 @@ function checkEncodedCharacters(url) {
   return { found: false, points: 0 };
 }
 
+// URL ENTROPY / RANDOMNESS SCORE
+function calculateURLEntropy(url) {
+  const urlPath = new URL(url).pathname + new URL(url).search;
+  const charFreq = {};
+  
+  for (const char of urlPath) {
+    charFreq[char] = (charFreq[char] || 0) + 1;
+  }
+
+  let entropy = 0;
+  const len = urlPath.length;
+  
+  for (const freq of Object.values(charFreq)) {
+    const p = freq / len;
+    entropy -= p * Math.log2(p);
+  }
+
+  if (entropy > 4.5) {
+    return { found: true, points: 15 };
+  }
+  return { found: false, points: 0 };
+}
+
+// REDIRECT CHAIN ANALYSIS
+async function checkRedirectChain(url) {
+  try {
+    let currentUrl = url;
+    let redirectCount = 0;
+    const maxRedirects = 10;
+
+    while (redirectCount < maxRedirects) {
+      const response = await fetch(currentUrl, {
+        method: 'HEAD',
+        redirect: 'manual'
+      });
+
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get('location');
+        if (!location) break;
+
+        redirectCount++;
+        const newUrl = new URL(location, currentUrl).href;
+        
+        if (newUrl === currentUrl) break;
+        currentUrl = newUrl;
+      } else {
+        break;
+      }
+    }
+
+    if (redirectCount > 2) {
+      return { found: true, points: 18, count: redirectCount };
+    }
+    return { found: false, points: 0 };
+  } catch (e) {
+    return { found: false, points: 0 };
+  }
+}
+
 // SCORING
 function getRiskLevel(score) {
   if (score <= 30) return 'Low';
   if (score <= 70) return 'Medium';
   return 'High';
+}
+
+// WEIGHTED RISK ENGINE
+const riskWeights = {
+  'Phishing Risk': 1.3,
+  'HTTPS & SSL': 1.4,
+  'Security Headers': 1.2,
+  'Domain Intelligence': 1.25,
+  'Reputation': 1.0,
+  'Redirect Chain': 1.35
+};
+
+function calculateWeightedScore(findings) {
+  let weightedScore = 0;
+  const categoryScores = {};
+
+  for (const finding of findings) {
+    const category = finding.category;
+    const weight = riskWeights[category] || 1.0;
+    const weighted = finding.points * weight;
+    
+    weightedScore += weighted;
+    categoryScores[category] = (categoryScores[category] || 0) + finding.points;
+  }
+
+  return Math.min(Math.round(weightedScore / findings.length || 0), 100);
 }
 
 // MAIN ANALYSIS
@@ -200,7 +285,8 @@ async function analyzeUrl(url) {
     { name: 'Suspicious TLD', fn: checkSuspiciousTLD, category: 'Domain Intelligence' },
     { name: 'Punycode Domain', fn: checkPunycode, category: 'Domain Intelligence' },
     { name: 'Long URL', fn: checkURLLength, category: 'Reputation' },
-    { name: 'Encoded Characters', fn: checkEncodedCharacters, category: 'Reputation' }
+    { name: 'Encoded Characters', fn: checkEncodedCharacters, category: 'Reputation' },
+    { name: 'High URL Entropy', fn: calculateURLEntropy, category: 'Reputation' }
   ];
 
   for (const check of checks) {
@@ -219,6 +305,7 @@ async function analyzeUrl(url) {
       else if (check.name === 'Punycode Domain') description = 'Punycode detected (xn-- domain)';
       else if (check.name === 'Long URL') description = 'URL is unusually long (exceeds 75 characters)';
       else if (check.name === 'Encoded Characters') description = 'URL contains encoded characters (% symbols)';
+      else if (check.name === 'High URL Entropy') description = 'URL path contains high randomness/entropy';
 
       findings.push({
         type: check.name,
@@ -261,6 +348,18 @@ async function analyzeUrl(url) {
       category: 'Security Headers',
       description: `Security header ${header.name} is missing`,
       points: header.points
+    });
+  }
+
+  // 4. REDIRECT CHAIN ANALYSIS
+  const redirectResult = await checkRedirectChain(url);
+  if (redirectResult.found) {
+    totalScore += redirectResult.points;
+    findings.push({
+      type: 'Redirect Chain Detected',
+      category: 'Redirect Chain',
+      description: `URL has ${redirectResult.count} redirects (exceeds 2)`,
+      points: redirectResult.points
     });
   }
 
