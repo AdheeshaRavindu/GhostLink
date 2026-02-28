@@ -361,13 +361,22 @@ async function extractPageMetadata(url) {
 // FETCH DOMAIN AGE FROM RDAP (FREE - NO API KEY REQUIRED)
 async function fetchDomainAge(domain) {
   try {
-    // RDAP API endpoint
-    const rdapUrl = `https://rdap.org/domain/${domain}`;
+    // Try primary RDAP endpoint
+    let rdapUrl = `https://rdap.org/domain/${domain}`;
     
-    const response = await fetch(rdapUrl, {
+    let response = await fetch(rdapUrl, {
       method: 'GET',
       headers: { 'Accept': 'application/json' }
     });
+
+    // If primary fails, try ARIN RDAP as fallback
+    if (!response.ok) {
+      rdapUrl = `https://rdap.arin.net/registry/domain/${domain}`;
+      response = await fetch(rdapUrl, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+    }
 
     if (!response.ok) return null;
 
@@ -376,19 +385,39 @@ async function fetchDomainAge(domain) {
     // RDAP returns events array with registration date
     const events = data?.events || [];
     
-    // Find registration event
-    let registrationEvent = events.find(e => e.eventAction === 'registration');
+    let registrationEvent = null;
     
-    // If not found, try other common event types
-    if (!registrationEvent) {
+    // Look for registration event - try multiple possible event action values
+    const eventActionMatch = [
+      'registration',
+      'registrationCreation',
+      'creation',
+      'registered',
+      'lastUpdateOfRegistrar',
+      'expirationTime'
+    ];
+    
+    for (const actionType of eventActionMatch) {
       registrationEvent = events.find(e => 
-        e.eventAction === 'registrationCreation' || 
-        e.eventAction === 'creation' ||
-        e.eventAction === 'registered'
+        e.eventAction === actionType && e.eventDate
       );
+      if (registrationEvent) break;
     }
     
-    if (!registrationEvent?.eventDate) return null;
+    // If still not found, look for first event with a date
+    if (!registrationEvent) {
+      registrationEvent = events.find(e => e.eventDate);
+    }
+    
+    if (!registrationEvent?.eventDate) {
+      // Try alternate response format (some registries use different structure)
+      const createdDate = data?.createdDate || data?.created || data?.registryData?.createdDate;
+      if (createdDate) {
+        registrationEvent = { eventDate: createdDate };
+      } else {
+        return null;
+      }
+    }
 
     const createdDate = registrationEvent.eventDate;
     const created = new Date(createdDate);
