@@ -851,6 +851,8 @@ body.ui-expanded .info-card p {
     font-size: 0.9em;
     margin-left: 2px;
     vertical-align: middle;
+    /* Ensure tooltips can be positioned properly */
+    z-index: 1;
 }
 
 .tech-term:hover {
@@ -879,6 +881,8 @@ body.ui-expanded .info-card p {
     transition: opacity 0.3s ease, visibility 0.3s ease;
     z-index: 1000;
     box-shadow: 0 4px 15px rgba(0, 255, 65, 0.2);
+    /* Prevent overflow on smaller screens */
+    max-width: 90vw;
 }
 
 .tech-term:hover::after {
@@ -911,11 +915,16 @@ body.ui-expanded .info-card p {
 @media (max-width: 600px) {
     .tech-term::after {
         white-space: normal;
-        width: 180px;
-        left: auto;
-        right: 0;
+        max-width: calc(100vw - 40px);
+        width: max-content;
+        left: 50%;
+        transform: translateX(-50%);
+        right: auto;
         bottom: auto;
         top: 125%;
+        text-align: center;
+        line-height: 1.4;
+        word-wrap: break-word;
     }
 
     .tech-term::before {
@@ -923,6 +932,22 @@ body.ui-expanded .info-card p {
         top: 120%;
         border-top-color: transparent;
         border-bottom-color: #00ff41;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+    
+    /* Prevent horizontal overflow */
+    .tech-term {
+        max-width: 100%;
+    }
+    
+    /* Ensure parent containers don't cause overflow */
+    .finding-item,
+    .metadata-item,
+    .security-finding,
+    .phishing-indicator {
+        overflow: visible;
+        position: relative;
     }
 }
 
