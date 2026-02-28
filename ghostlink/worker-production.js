@@ -426,12 +426,12 @@ async function fetchDomainAge(domain) {
     if (isNaN(created.getTime())) return null;
     
     const now = new Date();
-    const ageInDays = Math.floor((now - created) / (1000 * 60 * 60 * 24));
+    const ageInDays = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
     
     // Sanity check - age should be positive and less than 35 years
     if (ageInDays < 0 || ageInDays > 12775) return null;
     
-    const ageInYears = (ageInDays / 365).toFixed(1);
+    const ageInYears = parseFloat((ageInDays / 365).toFixed(1));
 
     return {
       createdDate: createdDate,
