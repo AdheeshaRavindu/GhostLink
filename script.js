@@ -14,21 +14,26 @@ urlInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') handleAnalyze();
 });
 
+setUiExpanded(false);
+
 // Main Analysis Handler
 async function handleAnalyze() {
     const url = urlInput.value.trim();
 
     // Validation
     if (!url) {
+        setUiExpanded(false);
         showError('Please enter a URL to analyze');
         return;
     }
 
     if (!isValidUrl(url)) {
+        setUiExpanded(false);
         showError('Please enter a valid URL (e.g., https://example.com)');
         return;
     }
 
+    setUiExpanded(true);
     showLoading();
     
     try {
@@ -71,6 +76,14 @@ async function analyzeUrlViaAPI(url) {
     const responseData = await response.json();
     // Extract the nested data object from the API response
     return responseData.data || responseData;
+}
+
+function setUiExpanded(expanded) {
+    if (expanded) {
+        document.body.classList.add('ui-expanded');
+    } else {
+        document.body.classList.remove('ui-expanded');
+    }
 }
 
 // Display Results
