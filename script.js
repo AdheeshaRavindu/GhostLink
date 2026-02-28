@@ -303,7 +303,13 @@ function displayDetailedInfo(details) {
         if (server.server) serverInfo += `<div class="detail-item"><span class="detail-label">Server Software:</span><span class="detail-value">${escapeHtml(server.server)}</span></div>`;
         if (server.statusCode) serverInfo += `<div class="detail-item"><span class="detail-label">HTTP Status:</span><span class="detail-value">${server.statusCode} ${escapeHtml(server.statusMessage || '')} ${server.statusCode === 200 ? '✓' : '⚠️'}</span></div>`;
         if (server.responseTime) serverInfo += `<div class="detail-item"><span class="detail-label">Response Time:</span><span class="detail-value">${server.responseTime}ms ${server.responseTime < 1000 ? '✓ Fast' : '⚠️ Slow'}</span></div>`;
+        if (server.sslInfo) serverInfo += `<div class="detail-item"><span class="detail-label">SSL/TLS Status:</span><span class="detail-value">${escapeHtml(server.sslInfo)} ${server.sslInfo.includes('Secured') ? '✓' : '⚠️'}</span></div>`;
+        if (server.finalUrl && server.finalUrl !== details.url) serverInfo += `<div class="detail-item"><span class="detail-label">Final URL <span class="detail-tooltip" title="URL after following redirects">ⓘ</span>:</span><span class="detail-value">${escapeHtml(server.finalUrl.substring(0, 50))}${server.finalUrl.length > 50 ? '...' : ''}</span></div>`;
         if (server.technologies.length > 0) serverInfo += `<div class="detail-item"><span class="detail-label">Web Technologies:</span><span class="detail-value">${escapeHtml(server.technologies.join(', '))}</span></div>`;
+        if (server.contentLength) serverInfo += `<div class="detail-item"><span class="detail-label">Content Size:</span><span class="detail-value">${formatBytes(server.contentLength)}</span></div>`;
+        if (server.lastModified) serverInfo += `<div class="detail-item"><span class="detail-label">Last Modified:</span><span class="detail-value">${formatDate(server.lastModified)}</span></div>`;
+        if (server.age) serverInfo += `<div class="detail-item"><span class="detail-label">Cache Age:</span><span class="detail-value">${server.age} seconds</span></div>`;
+        if (server.domainAge) serverInfo += `<div class="detail-item"><span class="detail-label">Domain Age <span class="detail-tooltip" title="How long this domain has been registered">ⓘ</span>:</span><span class="detail-value">${escapeHtml(server.domainAge.ageFormatted)} old ${server.domainAge.ageInDays < 365 ? '⚠️ Young' : '✓ Established'}</span></div>`;
         if (server.cacheControl) serverInfo += `<div class="detail-item"><span class="detail-label">Cache Control:</span><span class="detail-value">${escapeHtml(server.cacheControl.substring(0, 50))}</span></div>`;
         if (server.contentEncoding) serverInfo += `<div class="detail-item"><span class="detail-label">Compression:</span><span class="detail-value">${escapeHtml(server.contentEncoding)}</span></div>`;
         
@@ -427,6 +433,35 @@ function escapeHtml(text) {
         "'": '&#039;'
     };
     return text.replace(/[&<>"']/g, (m) => map[m]);
+}
+
+// Format bytes to human-readable size
+function formatBytes(bytes) {
+    if (!bytes || bytes === '0') return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+}
+
+// Format date to readable format
+function formatDate(dateString) {
+    try {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 0) return 'Today';
+        if (diffDays === 1) return 'Yesterday';
+        if (diffDays < 7) return `${diffDays} days ago`;
+        if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+        if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+        
+        return date.toLocaleDateString();
+    } catch (e) {
+        return dateString;
+    }
 }
 
 // Re-enable button after analysis

@@ -358,8 +358,50 @@ async function extractPageMetadata(url) {
   }
 }
 
+// FETCH DOMAIN AGE FROM RDAP (FREE - NO API KEY REQUIRED)
+async function fetchDomainAge(domain) {
+  try {
+    // Extract TLD to determine RDAP server
+    const tld = domain.split('.').pop().toLowerCase();
+    
+    // RDAP Bootstrap service (redirects to correct RDAP server)
+    const rdapUrl = `https://rdap.org/domain/${domain}`;
+    
+    const response = await fetch(rdapUrl, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(5000)
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    
+    // RDAP returns events array with registration date
+    const events = data?.events || [];
+    const registrationEvent = events.find(e => e.eventAction === 'registration');
+    
+    if (!registrationEvent?.eventDate) return null;
+
+    const createdDate = registrationEvent.eventDate;
+    const created = new Date(createdDate);
+    const now = new Date();
+    const ageInDays = Math.floor((now - created) / (1000 * 60 * 60 * 24));
+    const ageInYears = (ageInDays / 365).toFixed(1);
+
+    return {
+      createdDate: createdDate,
+      ageInDays: ageInDays,
+      ageInYears: ageInYears,
+      ageFormatted: ageInYears >= 1 ? `${ageInYears} years` : `${ageInDays} days`
+    };
+  } catch (e) {
+    return null; // RDAP lookup failed
+  }
+}
+
 // EXTRACT SERVER INFO
-async function extractServerInfo(url) {
+async function extractServerInfo(url, env) {
   const serverInfo = {
     server: null,
     poweredBy: null,
@@ -376,13 +418,48 @@ async function extractServerInfo(url) {
     statusMessage: null,
     technologies: [],
     securityHeaders: {},
-    redirects: []
+    redirects: [],
+    contentLength: null,
+    lastModified: null,
+    age: null,
+    finalUrl: url,
+    sslInfo: null,
+    domainAge: null
   };
 
   const startTime = Date.now();
 
   try {
-    const response = await fetch(url, { method: 'HEAD', redirect: 'manual' });
+    // Follow redirects to get final URL
+    let currentUrl = url;
+    let redirectChain = [];
+    let redirectCount = 0;
+    const maxRedirects = 5;
+
+    while (redirectCount < maxRedirects) {
+      const response = await fetch(currentUrl, { method: 'HEAD', redirect: 'manual' });
+      
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get('location');
+        if (location) {
+          redirectChain.push({ from: currentUrl, to: location });
+          currentUrl = new URL(location, currentUrl).href;
+          redirectCount++;
+        } else {
+          break;
+        }
+      } else {
+        break;
+      }
+    }
+
+    serverInfo.finalUrl = currentUrl;
+    if (redirectChain.length > 0) {
+      serverInfo.redirects = redirectChain;
+    }
+
+    // Fetch final URL
+    const response = await fetch(currentUrl, { method: 'HEAD', redirect: 'follow' });
     serverInfo.responseTime = Date.now() - startTime;
     serverInfo.statusCode = response.status;
 
@@ -403,6 +480,17 @@ async function extractServerInfo(url) {
     serverInfo.contentEncoding = response.headers.get('content-encoding');
     serverInfo.expires = response.headers.get('expires');
     serverInfo.etag = response.headers.get('etag');
+    serverInfo.contentLength = response.headers.get('content-length');
+    serverInfo.lastModified = response.headers.get('last-modified');
+    serverInfo.age = response.headers.get('age');
+
+    // Check for SSL/TLS info from headers
+    const protocol = new URL(currentUrl).protocol;
+    if (protocol === 'https:') {
+      serverInfo.sslInfo = 'Secured (HTTPS)';
+    } else {
+      serverInfo.sslInfo = 'Not Secured (HTTP)';
+    }
 
     // Security headers breakdown
     const csp = response.headers.get('content-security-policy');
@@ -437,6 +525,15 @@ async function extractServerInfo(url) {
     if (response.headers.get('x-powered-by')?.includes('Express')) serverInfo.technologies.push('Express.js');
     if (response.headers.get('x-powered-by')?.includes('PHP')) serverInfo.technologies.push('PHP');
     if (response.headers.get('x-aws-cf-id')) serverInfo.technologies.push('AWS CloudFront');
+
+    // Fetch domain age using free RDAP protocol
+    try {
+      const urlObj = new URL(currentUrl);
+      const domain = urlObj.hostname;
+      serverInfo.domainAge = await fetchDomainAge(domain);
+    } catch (e) {
+      // Domain age lookup failed, continue without it
+    }
 
   } catch (e) {
     serverInfo.responseTime = Date.now() - startTime;
@@ -516,7 +613,7 @@ function generateSecurityRecommendations(details) {
 }
 
 // MAIN ANALYSIS
-async function analyzeUrl(url) {
+async function analyzeUrl(url, env) {
   const findings = [];
   let totalScore = 0;
 
@@ -666,7 +763,7 @@ async function analyzeUrl(url) {
   }
 
   try {
-    serverInfo = await extractServerInfo(url);
+    serverInfo = await extractServerInfo(url, env);
   } catch (e) {
     serverInfo = {
       server: null,
@@ -691,7 +788,13 @@ async function analyzeUrl(url) {
         'Referrer-Policy': '✗ Missing',
         'Permissions-Policy': '✗ Missing'
       },
-      redirects: []
+      redirects: [],
+      contentLength: null,
+      lastModified: null,
+      age: null,
+      finalUrl: url,
+      sslInfo: null,
+      domainAge: null
     };
   }
 
@@ -777,7 +880,7 @@ export default {
 
         // Analyze the URL with error handling
         try {
-          const result = await analyzeUrl(urlString);
+          const result = await analyzeUrl(urlString, env);
 
           return new Response(
             JSON.stringify({
