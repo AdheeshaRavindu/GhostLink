@@ -1,0 +1,68 @@
+# Environment Variables
+.env
+.env.local
+.env.*.local
+.env*.example
+
+# Credentials & API Keys
+*.key
+*.pem
+*.pfx
+*.p12
+wrangler.toml
+.wrangler/
+
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build & Output
+dist/
+build/
+out/
+*.js.map
+*.css.map
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+*.log
+
+# OS Files
+Thumbs.db
+.DS_Store
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Temporary Files
+*.tmp
+*.temp
+.cache/
+tmp/
+
+# Sensitive Files
+secrets.json
+config.json
+*.creds
+credentials.json
+private/
+
+# Cloudflare Specific
+.wrangler/
+wrangler.json

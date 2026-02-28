@@ -967,3 +967,22 @@ body.ui-expanded .info-card p {
         width: 100%;
     }
 }
+
+/* Footer */
+.footer {
+    text-align: center;
+    padding: 30px 20px 20px;
+    color: #888;
+    font-size: 0.9rem;
+    border-top: 1px solid rgba(0, 255, 65, 0.2);
+    margin-top: 40px;
+}
+
+.footer p {
+    margin: 0;
+}
+
+.footer p:hover {
+    color: #00ff41;
+    transition: color 0.3s ease;
+}
