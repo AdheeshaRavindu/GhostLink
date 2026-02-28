@@ -141,7 +141,12 @@ function displayResults(result) {
         scoreCard.appendChild(statsGrid);
     }
 
-    // Findings Card
+    // Display detailed information (URL Intelligence - FIRST)
+    if (result.details) {
+        displayDetailedInfo(result.details);
+    }
+
+    // Findings Card (AFTER URL Intelligence)
     if (result.findings && result.findings.length > 0) {
         const findingsCard = document.createElement('div');
         findingsCard.className = 'findings-card';
@@ -193,11 +198,6 @@ function displayResults(result) {
         empty.className = 'empty-state';
         empty.innerHTML = '<p>No security threats detected. This URL appears to be safe!</p>';
         resultsSection.appendChild(empty);
-    }
-
-    // Display detailed information
-    if (result.details) {
-        displayDetailedInfo(result.details);
     }
 
     // Display security recommendations
