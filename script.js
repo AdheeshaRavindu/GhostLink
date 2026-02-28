@@ -309,7 +309,6 @@ function displayDetailedInfo(details) {
         if (server.contentLength) serverInfo += `<div class="detail-item"><span class="detail-label">Content Size:</span><span class="detail-value">${formatBytes(server.contentLength)}</span></div>`;
         if (server.lastModified) serverInfo += `<div class="detail-item"><span class="detail-label">Last Modified:</span><span class="detail-value">${formatDate(server.lastModified)}</span></div>`;
         if (server.age) serverInfo += `<div class="detail-item"><span class="detail-label">Cache Age:</span><span class="detail-value">${server.age} seconds</span></div>`;
-        if (server.domainAge) serverInfo += `<div class="detail-item"><span class="detail-label">Domain Age <span class="detail-tooltip" title="How long this domain has been registered">ⓘ</span>:</span><span class="detail-value">${escapeHtml(server.domainAge.ageFormatted)} old ${server.domainAge.ageInDays >= 365 ? '✓ Established' : '⚠️ Young'}</span></div>`;
         if (server.cacheControl) serverInfo += `<div class="detail-item"><span class="detail-label">Cache Control:</span><span class="detail-value">${escapeHtml(server.cacheControl.substring(0, 50))}</span></div>`;
         if (server.contentEncoding) serverInfo += `<div class="detail-item"><span class="detail-label">Compression:</span><span class="detail-value">${escapeHtml(server.contentEncoding)}</span></div>`;
         
@@ -352,6 +351,21 @@ function displayDetailedInfo(details) {
         
         dnsInfo += '</div>';
         detailsGrid.innerHTML += dnsInfo;
+    }
+
+    // Domain Intelligence
+    if (details.server && details.server.domainAge) {
+        const age = details.server.domainAge;
+        let domainIntel = `<div class="detail-section"><div class="detail-title">📊 Domain Intelligence</div><div class="detail-subtitle">Domain registration history and reputation indicators</div>`;
+        
+        domainIntel += `<div class="detail-item"><span class="detail-label">Domain Age:</span><span class="detail-value">${escapeHtml(age.ageFormatted)} ${age.ageInDays >= 365 ? '✓ Established' : '⚠️ Young'}</span></div>`;
+        domainIntel += `<div class="detail-item"><span class="detail-label">Registration Date:</span><span class="detail-value">${new Date(age.createdDate).toLocaleDateString()}</span></div>`;
+        domainIntel += `<div class="detail-item"><span class="detail-label">Days Since Registration:</span><span class="detail-value">${age.ageInDays} days</span></div>`;
+        domainIntel += `<div class="detail-item"><span class="detail-label">Registration Status:</span><span class="detail-value">${age.ageInDays >= 365 ? '✓ Legitimate (Well established)' : age.ageInDays >= 90 ? '⚠️ Moderately New' : '🚩 Very New (Recently registered)'}</span></div>`;
+        domainIntel += `<div class="detail-item"><span class="detail-label">Trust Indicator:</span><span class="detail-value">${age.ageInYears >= 5 ? '✓✓ High Trust' : age.ageInYears >= 1 ? '✓ Medium Trust' : '⚠️ Low Trust (Too New)'}</span></div>`;
+        
+        domainIntel += '</div>';
+        detailsGrid.innerHTML += domainIntel;
     }
 
     detailsCard.appendChild(detailsGrid);
