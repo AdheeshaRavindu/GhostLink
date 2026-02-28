@@ -23,7 +23,7 @@ body.ui-expanded {
     max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
 }
@@ -90,7 +90,7 @@ body.ui-expanded .title {
     display: flex;
     flex-direction: column;
     gap: 16px;
-    flex: 1;
+    flex: 0 1 auto;
 }
 
 body.ui-expanded .dashboard {
@@ -975,7 +975,7 @@ body.ui-expanded .info-card p {
     color: #888;
     font-size: 0.9rem;
     border-top: 1px solid rgba(0, 255, 65, 0.2);
-    margin-top: 40px;
+    margin-top: auto;
 }
 
 .footer p {
