@@ -199,13 +199,18 @@ function displayResults(result) {
     if (result.details) {
         displayDetailedInfo(result.details);
     }
+
+    // Display security recommendations
+    if (result.recommendations && result.recommendations.length > 0) {
+        displayRecommendations(result.recommendations);
+    }
 }
 
 // Display Detailed Information
 function displayDetailedInfo(details) {
     const detailsCard = document.createElement('div');
     detailsCard.className = 'details-card';
-    detailsCard.innerHTML = '<div class="details-header">URL Intelligence</div>';
+    detailsCard.innerHTML = '<div class="details-header">🔍 URL Intelligence</div>';
 
     const detailsGrid = document.createElement('div');
     detailsGrid.className = 'details-grid';
@@ -267,17 +272,77 @@ function displayDetailedInfo(details) {
         let serverInfo = '<div class="detail-section"><div class="detail-title">🖥️ Server Information</div>';
         
         if (server.server) serverInfo += `<div class="detail-item"><span class="detail-label">Server:</span><span class="detail-value">${escapeHtml(server.server)}</span></div>`;
-        if (server.statusCode) serverInfo += `<div class="detail-item"><span class="detail-label">Status Code:</span><span class="detail-value">${server.statusCode}</span></div>`;
+        if (server.statusCode) serverInfo += `<div class="detail-item"><span class="detail-label">Status:</span><span class="detail-value">${server.statusCode} ${escapeHtml(server.statusMessage || '')}</span></div>`;
         if (server.responseTime) serverInfo += `<div class="detail-item"><span class="detail-label">Response Time:</span><span class="detail-value">${server.responseTime}ms</span></div>`;
         if (server.technologies.length > 0) serverInfo += `<div class="detail-item"><span class="detail-label">Technologies:</span><span class="detail-value">${escapeHtml(server.technologies.join(', '))}</span></div>`;
-        if (server.xFrameOptions) serverInfo += `<div class="detail-item"><span class="detail-label">X-Frame-Options:</span><span class="detail-value">${escapeHtml(server.xFrameOptions)}</span></div>`;
+        if (server.cacheControl) serverInfo += `<div class="detail-item"><span class="detail-label">Cache:</span><span class="detail-value">${escapeHtml(server.cacheControl.substring(0, 50))}</span></div>`;
+        if (server.contentEncoding) serverInfo += `<div class="detail-item"><span class="detail-label">Encoding:</span><span class="detail-value">${escapeHtml(server.contentEncoding)}</span></div>`;
         
         serverInfo += '</div>';
         detailsGrid.innerHTML += serverInfo;
     }
 
+    // Security Headers
+    if (details.server && details.server.securityHeaders) {
+        const headers = details.server.securityHeaders;
+        let securityInfo = '<div class="detail-section"><div class="detail-title">🔒 Security Headers</div>';
+        
+        for (const [headerName, headerStatus] of Object.entries(headers)) {
+            const isPresent = headerStatus.includes('✓');
+            const statusClass = isPresent ? 'header-present' : 'header-missing';
+            securityInfo += `<div class="detail-item"><span class="detail-label">${escapeHtml(headerName)}:</span><span class="detail-value ${statusClass}">${escapeHtml(headerStatus)}</span></div>`;
+        }
+        
+        securityInfo += '</div>';
+        detailsGrid.innerHTML += securityInfo;
+    }
+
+    // DNS Information
+    if (details.dns && (details.dns.resolvedIP || details.dns.dnsLookupTime)) {
+        const dns = details.dns;
+        let dnsInfo = '<div class="detail-section"><div class="detail-title">🌐 DNS Information</div>';
+        
+        if (dns.domain) dnsInfo += `<div class="detail-item"><span class="detail-label">Domain:</span><span class="detail-value">${escapeHtml(dns.domain)}</span></div>`;
+        if (dns.resolvedIP) dnsInfo += `<div class="detail-item"><span class="detail-label">Resolved:</span><span class="detail-value">${escapeHtml(dns.resolvedIP)}</span></div>`;
+        if (dns.dnsLookupTime) dnsInfo += `<div class="detail-item"><span class="detail-label">Lookup Time:</span><span class="detail-value">${dns.dnsLookupTime}ms</span></div>`;
+        
+        dnsInfo += '</div>';
+        detailsGrid.innerHTML += dnsInfo;
+    }
+
     detailsCard.appendChild(detailsGrid);
     resultsSection.appendChild(detailsCard);
+}
+
+// Display Security Recommendations
+function displayRecommendations(recommendations) {
+    if (!recommendations || recommendations.length === 0) return;
+
+    const recCard = document.createElement('div');
+    recCard.className = 'recommendations-card';
+    recCard.innerHTML = '<div class="rec-header">💡 Security Recommendations</div>';
+
+    const recList = document.createElement('div');
+    recList.className = 'rec-list';
+
+    recommendations.forEach((rec, index) => {
+        const item = document.createElement('div');
+        item.className = 'rec-item';
+        
+        let icon = '💡';
+        if (rec.includes('CRITICAL')) icon = '🚨';
+        else if (rec.includes('SSL') || rec.includes('HTTPS') || rec.includes('TLS')) icon = '🔐';
+        else if (rec.includes('slow') || rec.includes('optimization')) icon = '⚡';
+
+        item.innerHTML = `
+            <span class="rec-icon">${icon}</span>
+            <span class="rec-text">${escapeHtml(rec)}</span>
+        `;
+        recList.appendChild(item);
+    });
+
+    recCard.appendChild(recList);
+    resultsSection.appendChild(recCard);
 }
 
 // Show Loading State

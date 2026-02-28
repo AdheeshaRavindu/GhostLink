@@ -356,38 +356,147 @@ async function extractServerInfo(url) {
     xFrameOptions: null,
     xContentTypeOptions: null,
     contentSecurityPolicy: null,
+    xUaCompatible: null,
+    cacheControl: null,
+    contentEncoding: null,
+    expires: null,
+    etag: null,
     responseTime: 0,
     statusCode: null,
-    technologies: []
+    statusMessage: null,
+    technologies: [],
+    securityHeaders: {},
+    redirects: []
   };
 
   const startTime = Date.now();
 
   try {
-    const response = await fetch(url, { method: 'HEAD' });
+    const response = await fetch(url, { method: 'HEAD', redirect: 'manual' });
     serverInfo.responseTime = Date.now() - startTime;
     serverInfo.statusCode = response.status;
+
+    // Get friendly status message
+    const statusMessages = {
+      200: 'OK', 301: 'Moved Permanently', 302: 'Found', 304: 'Not Modified',
+      400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found',
+      500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable'
+    };
+    serverInfo.statusMessage = statusMessages[response.status] || 'Unknown';
 
     serverInfo.server = response.headers.get('server');
     serverInfo.poweredBy = response.headers.get('x-powered-by');
     serverInfo.xFrameOptions = response.headers.get('x-frame-options');
     serverInfo.xContentTypeOptions = response.headers.get('x-content-type-options');
-    serverInfo.contentSecurityPolicy = response.headers.get('content-security-policy') ? 'Present' : null;
+    serverInfo.xUaCompatible = response.headers.get('x-ua-compatible');
+    serverInfo.cacheControl = response.headers.get('cache-control');
+    serverInfo.contentEncoding = response.headers.get('content-encoding');
+    serverInfo.expires = response.headers.get('expires');
+    serverInfo.etag = response.headers.get('etag');
+
+    // Security headers breakdown
+    const csp = response.headers.get('content-security-policy');
+    serverInfo.securityHeaders = {
+      'Content-Security-Policy': csp ? '✓ Present' : '✗ Missing',
+      'X-Frame-Options': serverInfo.xFrameOptions || '✗ Missing',
+      'X-Content-Type-Options': serverInfo.xContentTypeOptions || '✗ Missing',
+      'Strict-Transport-Security': response.headers.get('strict-transport-security') || '✗ Missing',
+      'Referrer-Policy': response.headers.get('referrer-policy') || '✗ Missing',
+      'Permissions-Policy': response.headers.get('permissions-policy') ? '✓ Present' : '✗ Missing'
+    };
+
+    // Check for redirects
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('location');
+      if (location) {
+        serverInfo.redirects.push({
+          from: url,
+          to: location,
+          status: response.status
+        });
+      }
+    }
 
     // Detect technologies from headers
     const serverHeader = response.headers.get('server') || '';
     if (serverHeader.includes('Apache')) serverInfo.technologies.push('Apache');
     if (serverHeader.includes('nginx')) serverInfo.technologies.push('Nginx');
     if (serverHeader.includes('Microsoft-IIS')) serverInfo.technologies.push('IIS');
+    if (serverHeader.includes('cloudflare')) serverInfo.technologies.push('Cloudflare CDN');
     if (response.headers.get('x-aspnet-version')) serverInfo.technologies.push('ASP.NET');
     if (response.headers.get('x-powered-by')?.includes('Express')) serverInfo.technologies.push('Express.js');
     if (response.headers.get('x-powered-by')?.includes('PHP')) serverInfo.technologies.push('PHP');
+    if (response.headers.get('x-aws-cf-id')) serverInfo.technologies.push('AWS CloudFront');
 
   } catch (e) {
     serverInfo.responseTime = Date.now() - startTime;
   }
 
   return serverInfo;
+}
+
+// EXTRACT DNS INFO
+async function extractDNSInfo(url) {
+  const dnsInfo = {
+    domain: null,
+    resolvedIP: null,
+    dnsLookupTime: 0
+  };
+
+  try {
+    const urlObj = new URL(url);
+    dnsInfo.domain = urlObj.hostname;
+
+    const startTime = Date.now();
+    // Note: Cloudflare Workers don't have direct DNS lookup, but we can infer from fetch
+    const response = await fetch(`https://${urlObj.hostname}`, { method: 'HEAD' });
+    dnsInfo.dnsLookupTime = Date.now() - startTime;
+    
+    // Try to get server IP from headers if available
+    const viaHeader = response.headers.get('via');
+    if (viaHeader) {
+      dnsInfo.resolvedIP = viaHeader;
+    }
+  } catch (e) {
+    // Silently handle DNS errors
+  }
+
+  return dnsInfo;
+}
+
+// GENERATE SECURITY RECOMMENDATIONS
+function generateSecurityRecommendations(details) {
+  const recommendations = [];
+
+  if (!details.metadata.title) {
+    recommendations.push('Add a proper page title tag for accessibility');
+  }
+
+  if (!details.server.securityHeaders['Content-Security-Policy'].includes('✓')) {
+    recommendations.push('Implement Content-Security-Policy header to prevent XSS attacks');
+  }
+
+  if (!details.server.securityHeaders['X-Frame-Options'].includes('✓')) {
+    recommendations.push('Add X-Frame-Options header to prevent clickjacking');
+  }
+
+  if (!details.server.securityHeaders['Strict-Transport-Security'].includes('✓')) {
+    recommendations.push('Enable HSTS (Strict-Transport-Security) for HTTPS enforcement');
+  }
+
+  if (details.metadata.hasForm && details.components.protocol === 'http:') {
+    recommendations.push('⚠️ CRITICAL: Forms over HTTP are vulnerable to interception. Use HTTPS.');
+  }
+
+  if (details.server.responseTime > 3000) {
+    recommendations.push('Server response time is slow. Optimize or use a CDN.');
+  }
+
+  if (details.server.statusCode >= 400) {
+    recommendations.push(`Server returned status ${details.server.statusCode}. Check URL validity.`);
+  }
+
+  return recommendations.slice(0, 5); // Return top 5 recommendations
 }
 
 // MAIN ANALYSIS
@@ -488,17 +597,24 @@ async function analyzeUrl(url) {
   const urlComponents = analyzeURLComponents(url);
   const pageMetadata = await extractPageMetadata(url);
   const serverInfo = await extractServerInfo(url);
+  const dnsInfo = await extractDNSInfo(url);
+
+  const details = {
+    url: url,
+    components: urlComponents,
+    metadata: pageMetadata,
+    server: serverInfo,
+    dns: dnsInfo
+  };
+
+  const recommendations = generateSecurityRecommendations(details);
 
   return {
     score: Math.min(totalScore, 100),
     riskLevel: getRiskLevel(Math.min(totalScore, 100)),
     findings: findings,
-    details: {
-      url: url,
-      components: urlComponents,
-      metadata: pageMetadata,
-      server: serverInfo
-    }
+    details: details,
+    recommendations: recommendations
   };
 }
 
