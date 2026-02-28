@@ -179,25 +179,35 @@ function checkEncodedCharacters(url) {
 
 // URL ENTROPY / RANDOMNESS SCORE
 function calculateURLEntropy(url) {
-  const urlPath = new URL(url).pathname + new URL(url).search;
-  const charFreq = {};
-  
-  for (const char of urlPath) {
-    charFreq[char] = (charFreq[char] || 0) + 1;
-  }
+  try {
+    const urlObj = new URL(url);
+    const urlPath = urlObj.pathname + urlObj.search;
+    
+    if (urlPath.length === 0) {
+      return { found: false, points: 0 };
+    }
+    
+    const charFreq = {};
+    
+    for (const char of urlPath) {
+      charFreq[char] = (charFreq[char] || 0) + 1;
+    }
 
-  let entropy = 0;
-  const len = urlPath.length;
-  
-  for (const freq of Object.values(charFreq)) {
-    const p = freq / len;
-    entropy -= p * Math.log2(p);
-  }
+    let entropy = 0;
+    const len = urlPath.length;
+    
+    for (const freq of Object.values(charFreq)) {
+      const p = freq / len;
+      entropy -= p * Math.log2(p);
+    }
 
-  if (entropy > 4.5) {
-    return { found: true, points: 15 };
+    if (entropy > 4.5) {
+      return { found: true, points: 15 };
+    }
+    return { found: false, points: 0 };
+  } catch (e) {
+    return { found: false, points: 0 };
   }
-  return { found: false, points: 0 };
 }
 
 // REDIRECT CHAIN ANALYSIS
@@ -468,32 +478,38 @@ async function extractDNSInfo(url) {
 function generateSecurityRecommendations(details) {
   const recommendations = [];
 
-  if (!details.metadata.title) {
-    recommendations.push('Add a proper page title tag for accessibility');
-  }
+  try {
+    if (details.metadata && !details.metadata.title) {
+      recommendations.push('Add a proper page title tag for accessibility');
+    }
 
-  if (!details.server.securityHeaders['Content-Security-Policy'].includes('✓')) {
-    recommendations.push('Implement Content-Security-Policy header to prevent XSS attacks');
-  }
+    if (details.server && details.server.securityHeaders) {
+      if (!details.server.securityHeaders['Content-Security-Policy']?.includes('✓')) {
+        recommendations.push('Implement Content-Security-Policy header to prevent XSS attacks');
+      }
 
-  if (!details.server.securityHeaders['X-Frame-Options'].includes('✓')) {
-    recommendations.push('Add X-Frame-Options header to prevent clickjacking');
-  }
+      if (!details.server.securityHeaders['X-Frame-Options']?.includes('✓')) {
+        recommendations.push('Add X-Frame-Options header to prevent clickjacking');
+      }
 
-  if (!details.server.securityHeaders['Strict-Transport-Security'].includes('✓')) {
-    recommendations.push('Enable HSTS (Strict-Transport-Security) for HTTPS enforcement');
-  }
+      if (!details.server.securityHeaders['Strict-Transport-Security']?.includes('✓')) {
+        recommendations.push('Enable HSTS (Strict-Transport-Security) for HTTPS enforcement');
+      }
+    }
 
-  if (details.metadata.hasForm && details.components.protocol === 'http:') {
-    recommendations.push('⚠️ CRITICAL: Forms over HTTP are vulnerable to interception. Use HTTPS.');
-  }
+    if (details.metadata?.hasForm && details.components?.protocol === 'http:') {
+      recommendations.push('⚠️ CRITICAL: Forms over HTTP are vulnerable to interception. Use HTTPS.');
+    }
 
-  if (details.server.responseTime > 3000) {
-    recommendations.push('Server response time is slow. Optimize or use a CDN.');
-  }
+    if (details.server?.responseTime > 3000) {
+      recommendations.push('Server response time is slow. Optimize or use a CDN.');
+    }
 
-  if (details.server.statusCode >= 400) {
-    recommendations.push(`Server returned status ${details.server.statusCode}. Check URL validity.`);
+    if (details.server?.statusCode >= 400) {
+      recommendations.push(`Server returned status ${details.server.statusCode}. Check URL validity.`);
+    }
+  } catch (e) {
+    // If recommendation generation fails, return empty array
   }
 
   return recommendations.slice(0, 5); // Return top 5 recommendations
@@ -520,84 +536,174 @@ async function analyzeUrl(url) {
   ];
 
   for (const check of checks) {
-    const result = check.fn(url);
-    if (result.found) {
-      totalScore += result.points;
-      let description = '';
-      
-      if (check.name === 'IP Address') description = 'URL uses IP address instead of domain name';
-      else if (check.name === 'At Symbol') description = 'URL contains @ symbol (credential phishing)';
-      else if (check.name === 'Excessive Subdomains') description = `URL has ${result.count} subdomains (more than 3)`;
-      else if (check.name === 'Suspicious Keywords') description = 'URL contains suspicious keywords (login, verify, bank, etc.)';
-      else if (check.name === 'Domain Length') description = `Domain name is ${result.length} characters (exceeds 40)`;
-      else if (check.name === 'No HTTPS') description = 'URL does not use HTTPS encryption';
-      else if (check.name === 'Suspicious TLD') description = 'Suspicious top-level domain detected';
-      else if (check.name === 'Punycode Domain') description = 'Punycode detected (xn-- domain)';
-      else if (check.name === 'Long URL') description = 'URL is unusually long (exceeds 75 characters)';
-      else if (check.name === 'Encoded Characters') description = 'URL contains encoded characters (% symbols)';
-      else if (check.name === 'High URL Entropy') description = 'URL path contains high randomness/entropy';
+    try {
+      const result = check.fn(url);
+      if (result.found) {
+        totalScore += result.points;
+        let description = '';
+        
+        if (check.name === 'IP Address') description = 'URL uses IP address instead of domain name';
+        else if (check.name === 'At Symbol') description = 'URL contains @ symbol (credential phishing)';
+        else if (check.name === 'Excessive Subdomains') description = `URL has ${result.count} subdomains (more than 3)`;
+        else if (check.name === 'Suspicious Keywords') description = 'URL contains suspicious keywords (login, verify, bank, etc.)';
+        else if (check.name === 'Domain Length') description = `Domain name is ${result.length} characters (exceeds 40)`;
+        else if (check.name === 'No HTTPS') description = 'URL does not use HTTPS encryption';
+        else if (check.name === 'Suspicious TLD') description = 'Suspicious top-level domain detected';
+        else if (check.name === 'Punycode Domain') description = 'Punycode detected (xn-- domain)';
+        else if (check.name === 'Long URL') description = 'URL is unusually long (exceeds 75 characters)';
+        else if (check.name === 'Encoded Characters') description = 'URL contains encoded characters (% symbols)';
+        else if (check.name === 'High URL Entropy') description = 'URL path contains high randomness/entropy';
 
-      findings.push({
-        type: check.name,
-        category: check.category,
-        description: description,
-        points: result.points
-      });
+        findings.push({
+          type: check.name,
+          category: check.category,
+          description: description,
+          points: result.points
+        });
+      }
+    } catch (e) {
+      // Skip this check if it errors out
     }
   }
 
   // 2. HTTPS/SSL ASYNC CHECKS
-  const httpsRedirectResult = await checkHTTPSRedirect(url);
-  if (httpsRedirectResult.found) {
-    totalScore += httpsRedirectResult.points;
-    findings.push({
-      type: 'No HTTP → HTTPS Redirect',
-      category: 'HTTPS & SSL',
-      description: 'HTTP does not redirect to HTTPS',
-      points: httpsRedirectResult.points
-    });
+  try {
+    const httpsRedirectResult = await checkHTTPSRedirect(url);
+    if (httpsRedirectResult.found) {
+      totalScore += httpsRedirectResult.points;
+      findings.push({
+        type: 'No HTTP → HTTPS Redirect',
+        category: 'HTTPS & SSL',
+        description: 'HTTP does not redirect to HTTPS',
+        points: httpsRedirectResult.points
+      });
+    }
+  } catch (e) {
+    // Skip if HTTPS redirect check fails
   }
 
-  const hstsResult = await checkHSTS(url);
-  if (hstsResult.found) {
-    totalScore += hstsResult.points;
-    findings.push({
-      type: 'No HSTS Header',
-      category: 'HTTPS & SSL',
-      description: 'HSTS (HTTP Strict Transport Security) header missing',
-      points: hstsResult.points
-    });
+  try {
+    const hstsResult = await checkHSTS(url);
+    if (hstsResult.found) {
+      totalScore += hstsResult.points;
+      findings.push({
+        type: 'No HSTS Header',
+        category: 'HTTPS & SSL',
+        description: 'HSTS (HTTP Strict Transport Security) header missing',
+        points: hstsResult.points
+      });
+    }
+  } catch (e) {
+    // Skip if HSTS check fails
   }
 
   // 3. SECURITY HEADERS
-  const headersResult = await checkSecurityHeaders(url);
-  totalScore += headersResult.totalPoints;
-  for (const header of headersResult.findings) {
-    findings.push({
-      type: `Missing ${header.name}`,
-      category: 'Security Headers',
-      description: `Security header ${header.name} is missing`,
-      points: header.points
-    });
+  try {
+    const headersResult = await checkSecurityHeaders(url);
+    totalScore += headersResult.totalPoints;
+    for (const header of headersResult.findings) {
+      findings.push({
+        type: `Missing ${header.name}`,
+        category: 'Security Headers',
+        description: `Security header ${header.name} is missing`,
+        points: header.points
+      });
+    }
+  } catch (e) {
+    // Skip if security headers check fails
   }
 
   // 4. REDIRECT CHAIN ANALYSIS
-  const redirectResult = await checkRedirectChain(url);
-  if (redirectResult.found) {
-    totalScore += redirectResult.points;
-    findings.push({
-      type: 'Redirect Chain Detected',
-      category: 'Redirect Chain',
-      description: `URL has ${redirectResult.count} redirects (exceeds 2)`,
-      points: redirectResult.points
-    });
+  try {
+    const redirectResult = await checkRedirectChain(url);
+    if (redirectResult.found) {
+      totalScore += redirectResult.points;
+      findings.push({
+        type: 'Redirect Chain Detected',
+        category: 'Redirect Chain',
+        description: `URL has ${redirectResult.count} redirects (exceeds 2)`,
+        points: redirectResult.points
+      });
+    }
+  } catch (e) {
+    // Skip if redirect chain check fails
   }
 
   // 5. GATHER DETAILED INFORMATION
-  const urlComponents = analyzeURLComponents(url);
-  const pageMetadata = await extractPageMetadata(url);
-  const serverInfo = await extractServerInfo(url);
-  const dnsInfo = await extractDNSInfo(url);
+  let urlComponents = null;
+  let pageMetadata = null;
+  let serverInfo = null;
+  let dnsInfo = null;
+
+  try {
+    urlComponents = analyzeURLComponents(url);
+  } catch (e) {
+    // If URL component analysis fails, use defaults
+    urlComponents = {
+      protocol: 'unknown',
+      domain: 'unknown',
+      port: 'unknown',
+      pathDepth: 0,
+      pathLength: 0,
+      queryParamCount: 0,
+      hasFragment: false,
+      domainParts: 0
+    };
+  }
+
+  try {
+    pageMetadata = await extractPageMetadata(url);
+  } catch (e) {
+    pageMetadata = {
+      title: null,
+      description: null,
+      contentType: null,
+      favicon: null,
+      language: null,
+      charset: null,
+      hasForm: false
+    };
+  }
+
+  try {
+    serverInfo = await extractServerInfo(url);
+  } catch (e) {
+    serverInfo = {
+      server: null,
+      poweredBy: null,
+      xFrameOptions: null,
+      xContentTypeOptions: null,
+      contentSecurityPolicy: null,
+      xUaCompatible: null,
+      cacheControl: null,
+      contentEncoding: null,
+      expires: null,
+      etag: null,
+      responseTime: 0,
+      statusCode: null,
+      statusMessage: null,
+      technologies: [],
+      securityHeaders: {
+        'Content-Security-Policy': '✗ Missing',
+        'X-Frame-Options': '✗ Missing',
+        'X-Content-Type-Options': '✗ Missing',
+        'Strict-Transport-Security': '✗ Missing',
+        'Referrer-Policy': '✗ Missing',
+        'Permissions-Policy': '✗ Missing'
+      },
+      redirects: []
+    };
+  }
+
+  try {
+    dnsInfo = await extractDNSInfo(url);
+  } catch (e) {
+    dnsInfo = {
+      domain: null,
+      resolvedIP: null,
+      dnsLookupTime: 0
+    };
+  }
 
   const details = {
     url: url,
@@ -646,27 +752,44 @@ export default {
           );
         }
 
+        // Validate URL format
+        let urlObj;
         try {
-          new URL(url);
+          urlObj = new URL(url);
         } catch (e) {
           return new Response(
             JSON.stringify({
-              error: 'Invalid URL format.',
-              code: 'INVALID_URL'
+              error: 'Invalid URL format. Please include protocol (http:// or https://).',
+              code: 'INVALID_URL',
+              details: e.message
             }),
             { status: 400, headers: corsHeaders }
           );
         }
 
-        const result = await analyzeUrl(url);
+        // Analyze the URL with error handling
+        try {
+          const result = await analyzeUrl(url);
 
-        return new Response(
-          JSON.stringify({
-            success: true,
-            data: result
-          }),
-          { status: 200, headers: corsHeaders }
-        );
+          return new Response(
+            JSON.stringify({
+              success: true,
+              data: result
+            }),
+            { status: 200, headers: corsHeaders }
+          );
+        } catch (analysisError) {
+          // Analysis failed, but return partial results if possible
+          return new Response(
+            JSON.stringify({
+              error: 'Analysis encountered an error',
+              code: 'ANALYSIS_ERROR',
+              message: analysisError.message,
+              url: url
+            }),
+            { status: 500, headers: corsHeaders }
+          );
+        }
       } catch (error) {
         return new Response(
           JSON.stringify({
