@@ -68,7 +68,9 @@ async function analyzeUrlViaAPI(url) {
         throw new Error(`Worker returned status ${response.status}`);
     }
 
-    return await response.json();
+    const responseData = await response.json();
+    // Extract the nested data object from the API response
+    return responseData.data || responseData;
 }
 
 // Display Results
