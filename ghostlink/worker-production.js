@@ -591,40 +591,51 @@ async function extractDNSInfo(url) {
   return dnsInfo;
 }
 
-// GENERATE SECURITY RECOMMENDATIONS
-function generateSecurityRecommendations(details) {
+// GENERATE USER-FOCUSED SAFETY RECOMMENDATIONS
+function generateSecurityRecommendations(details, riskLevel, score) {
   const recommendations = [];
 
   try {
-    if (details.metadata && !details.metadata.title) {
-      recommendations.push('Add a proper page title tag for accessibility');
+    // High risk warnings
+    if (riskLevel === 'High') {
+      recommendations.push('🚨 AVOID visiting this site — it shows multiple security red flags. Do not enter personal information.');
+      recommendations.push('⚠️ If you must visit, use a temporary email and never reuse passwords from other sites.');
+      recommendations.push('🛡️ Consider using a VPN to mask your IP address on this site.');
+    }
+    // Medium risk warnings
+    else if (riskLevel === 'Medium') {
+      recommendations.push('⚠️ Be cautious with this site — it has some security concerns. Avoid entering sensitive data.');
+      recommendations.push('🔒 If entering passwords, use a unique password not used elsewhere.');
+      recommendations.push('👀 Look carefully for HTTPS lock icon in your browser address bar.');
+    }
+    // Low risk recommendations
+    else {
+      recommendations.push('✓ This site appears safe — but always verify URLs before entering passwords.');
+      recommendations.push('💡 Tip: Bookmark important sites to avoid typing URLs manually and being redirected.');
+      recommendations.push('🔐 Use a password manager to generate unique passwords for each site.');
     }
 
-    if (details.server && details.server.securityHeaders) {
-      if (!details.server.securityHeaders['Content-Security-Policy']?.includes('✓')) {
-        recommendations.push('Implement Content-Security-Policy header to prevent XSS attacks');
-      }
-
-      if (!details.server.securityHeaders['X-Frame-Options']?.includes('✓')) {
-        recommendations.push('Add X-Frame-Options header to prevent clickjacking');
-      }
-
-      if (!details.server.securityHeaders['Strict-Transport-Security']?.includes('✓')) {
-        recommendations.push('Enable HSTS (Strict-Transport-Security) for HTTPS enforcement');
-      }
+    // Specific threat warnings for user
+    if (details.server && !details.server.sslInfo?.includes('Secured')) {
+      recommendations.push('⚠️ This site uses HTTP (not HTTPS) — your data is not encrypted. Do not enter personal info.');
     }
 
-    if (details.metadata?.hasForm && details.components?.protocol === 'http:') {
-      recommendations.push('⚠️ CRITICAL: Forms over HTTP are vulnerable to interception. Use HTTPS.');
+    if (details.metadata?.hasForm && details.server?.statusCode !== 200) {
+      recommendations.push('🚩 Login form detected on error page — this is unusual. Be extra cautious.');
+    }
+
+    if (details.components?.protocol === 'http:' && details.metadata?.hasForm) {
+      recommendations.push('🚨 CRITICAL: Login form over unencrypted HTTP — never enter credentials here.');
     }
 
     if (details.server?.responseTime > 3000) {
-      recommendations.push('Server response time is slow. Optimize or use a CDN.');
+      recommendations.push('⏱️ Site is very slow to load — it may be overloaded or unreliable.');
     }
 
     if (details.server?.statusCode >= 400) {
-      recommendations.push(`Server returned status ${details.server.statusCode}. Check URL validity.`);
+      recommendations.push(`📵 This page returned error ${details.server.statusCode} — the URL may be broken or the site may be down.`);
     }
+
   } catch (e) {
     // If recommendation generation fails, return empty array
   }
@@ -843,11 +854,12 @@ async function analyzeUrl(url, env) {
     domainIntel: domainIntel
   };
 
-  const recommendations = generateSecurityRecommendations(details);
+  const riskLevel = getRiskLevel(totalScore);
+  const recommendations = generateSecurityRecommendations(details, riskLevel, totalScore);
 
   return {
     score: totalScore,
-    riskLevel: getRiskLevel(totalScore),
+    riskLevel: riskLevel,
     findings: findings,
     details: details,
     recommendations: recommendations

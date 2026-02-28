@@ -393,8 +393,8 @@ function displayRecommendations(recommendations) {
     const recCard = document.createElement('div');
     recCard.className = 'recommendations-card';
     recCard.innerHTML = `
-        <div class="rec-header">💡 Security Recommendations</div>
-        <div class="rec-description">Actionable steps to improve security when visiting this site or similar URLs</div>
+        <div class="rec-header">💡 Safety Tips</div>
+        <div class="rec-description">Recommendations for visitors based on this site's security analysis</div>
     `;
 
     const recList = document.createElement('div');
