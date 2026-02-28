@@ -3,6 +3,61 @@
 // Configuration
 const WORKER_URL = 'https://frosty-thunder-f4fe.adheesharavindu001.workers.dev/analyze';
 
+// Tooltip Glossary for Technical Terms
+const TECH_GLOSSARY = {
+  'HTTPS': 'Secure, encrypted connection between you and the website',
+  'HTTP': 'Unencrypted connection (insecure)',
+  'SSL': 'Secure Sockets Layer - encryption protocol for security',
+  'TLS': 'Transport Layer Security - newer version of SSL',
+  'CSP': 'Content-Security-Policy: Prevents malicious scripts from running',
+  'HSTS': 'Strict-Transport-Security: Forces HTTPS connection',
+  'X-Frame-Options': 'Prevents clickjacking attacks by restricting how the page can be framed',
+  'Punycode': 'Domain using internationalized characters (xn-- prefix)',
+  'Subdomain': 'Part of domain before main domain (e.g., mail in mail.example.com)',
+  'Entropy': 'Randomness in domain/URL names - higher entropy can indicate suspicion',
+  'X-Content-Type-Options': 'Prevents browsers from misinterpreting content types',
+  'Referrer-Policy': 'Controls what site information is sent when following links',
+  'Port': 'Network connection point (443 for HTTPS, 80 for HTTP)',
+  'Query Parameters': 'Extra data in URL after ? (e.g., ?search=term)',
+  'Redirect': 'Automatic forwarding from one URL to another',
+  'Charset': 'Character encoding format (usually UTF-8)',
+  'Protocol': 'Communication method (HTTP or HTTPS)',
+  'DNS Lookup': 'Process of finding server IP from domain name',
+  'Registrable Domain': 'Main domain without subdomains',
+  'TLD Class': 'Type of top-level domain (.com is generic, .uk is country)',
+  'Permissions-Policy': 'Restricts browser features and APIs the page can use',
+  'Final URL': 'Destination URL after following all redirects'
+};
+
+// Function to add tooltip to technical terms
+function addTooltip(text, term) {
+  if (TECH_GLOSSARY[term]) {
+    return `<span class="tech-term" title="${TECH_GLOSSARY[term]}">${text}</span>`;
+  }
+  return text;
+}
+
+// Function to replace technical terms in text with tooltips
+function addTooltipsToText(text) {
+  let result = text;
+  // Add tooltips for common technical terms found in text
+  const termsToReplace = [
+    'Punycode', 'HTTPS', 'HTTP', 'SSL', 'TLS', 'CSP', 'HSTS', 'X-Frame-Options',
+    'X-Content-Type-Options', 'Referrer-Policy', 'Permissions-Policy', 'Subdomain',
+    'Entropy', 'Redirect', 'DNS'
+  ];
+  
+  termsToReplace.forEach(term => {
+    // Create regex with word boundaries to avoid partial matches
+    const regex = new RegExp(`\\b${term}\\b`, 'g');
+    if (regex.test(result) && TECH_GLOSSARY[term]) {
+      result = result.replace(regex, `<span class="tech-term" title="${TECH_GLOSSARY[term]}">${term}</span>`);
+    }
+  });
+  
+  return result;
+}
+
 // DOM Elements
 const urlInput = document.getElementById('urlInput');
 const analyzeBtn = document.getElementById('analyzeBtn');
@@ -216,10 +271,10 @@ function displayResults(result) {
 
                 item.innerHTML = `
                     <div class="finding-header-row">
-                        <div class="finding-type">${escapeHtml(finding.type)}</div>
+                        <div class="finding-type">${addTooltipsToText(escapeHtml(finding.type))}</div>
                         <span class="finding-severity severity-${severity}" title="Severity: ${severity.charAt(0).toUpperCase() + severity.slice(1)}">${finding.points > 0 ? '!' : '✓'}</span>
                     </div>
-                    <div class="finding-description">${escapeHtml(finding.description)}</div>
+                    <div class="finding-description">${addTooltipsToText(escapeHtml(finding.description))}</div>
                     <div class="finding-points"><span class="points-icon">📉</span> <span class="points-value">-${finding.points} points</span></div>
                 `;
 
@@ -264,7 +319,7 @@ function displayDetailedInfo(details) {
                 <div class="detail-title">🔗 URL Structure</div>
                 <div class="detail-subtitle">How this URL is organized</div>
                 <div class="detail-item">
-                    <span class="detail-label">Protocol <span class="detail-tooltip" title="HTTP (unencrypted) or HTTPS (encrypted & secure)">ⓘ</span>:</span>
+                    <span class="detail-label">${addTooltip('Protocol', 'Protocol')}:</span>
                     <span class="detail-value">${escapeHtml(comp.protocol)}</span>
                 </div>
                 <div class="detail-item">
@@ -272,7 +327,7 @@ function displayDetailedInfo(details) {
                     <span class="detail-value">${escapeHtml(comp.domain)}</span>
                 </div>
                 <div class="detail-item">
-                    <span class="detail-label">Port <span class="detail-tooltip" title="Network connection point (443 for HTTPS, 80 for HTTP)">ⓘ</span>:</span>
+                    <span class="detail-label">${addTooltip('Port', 'Port')}:</span>
                     <span class="detail-value">${comp.port}</span>
                 </div>
                 <div class="detail-item">
@@ -280,7 +335,7 @@ function displayDetailedInfo(details) {
                     <span class="detail-value">${comp.pathDepth} segment${comp.pathDepth !== 1 ? 's' : ''}</span>
                 </div>
                 <div class="detail-item">
-                    <span class="detail-label">Query Parameters <span class="detail-tooltip" title="Extra data sent in the URL after ?">ⓘ</span>:</span>
+                    <span class="detail-label">${addTooltip('Query Parameters', 'Query Parameters')}:</span>
                     <span class="detail-value">${comp.queryParamCount}</span>
                 </div>
                 <div class="detail-item">
@@ -300,7 +355,7 @@ function displayDetailedInfo(details) {
         if (meta.title) metaInfo += `<div class="detail-item"><span class="detail-label">Page Title:</span><span class="detail-value">${escapeHtml(meta.title)}</span></div>`;
         if (meta.description) metaInfo += `<div class="detail-item"><span class="detail-label">Description:</span><span class="detail-value">${escapeHtml(meta.description)}</span></div>`;
         if (meta.language) metaInfo += `<div class="detail-item"><span class="detail-label">Language:</span><span class="detail-value">${escapeHtml(meta.language)}</span></div>`;
-        if (meta.charset) metaInfo += `<div class="detail-item"><span class="detail-label">Character Set:</span><span class="detail-value">${escapeHtml(meta.charset)}</span></div>`;
+        if (meta.charset) metaInfo += `<div class="detail-item"><span class="detail-label">${addTooltip('Charset', 'Charset')}:</span><span class="detail-value">${escapeHtml(meta.charset)}</span></div>`;
         if (meta.contentType) metaInfo += `<div class="detail-item"><span class="detail-label">Content Type:</span><span class="detail-value">${escapeHtml(meta.contentType)}</span></div>`;
         metaInfo += `<div class="detail-item"><span class="detail-label">Has Login Form:</span><span class="detail-value">${meta.hasForm ? '⚠️ Yes (check carefully)' : '✓ No'}</span></div>`;
         
@@ -316,8 +371,8 @@ function displayDetailedInfo(details) {
         if (server.server) serverInfo += `<div class="detail-item"><span class="detail-label">Server Software:</span><span class="detail-value">${escapeHtml(server.server)}</span></div>`;
         if (server.statusCode) serverInfo += `<div class="detail-item"><span class="detail-label">HTTP Status:</span><span class="detail-value">${server.statusCode} ${escapeHtml(server.statusMessage || '')} ${server.statusCode === 200 ? '✓' : '⚠️'}</span></div>`;
         if (server.responseTime) serverInfo += `<div class="detail-item"><span class="detail-label">Response Time:</span><span class="detail-value">${server.responseTime}ms ${server.responseTime < 1000 ? '✓ Fast' : '⚠️ Slow'}</span></div>`;
-        if (server.sslInfo) serverInfo += `<div class="detail-item"><span class="detail-label">SSL/TLS Status:</span><span class="detail-value">${escapeHtml(server.sslInfo)} ${server.sslInfo.includes('Secured') ? '✓' : '⚠️'}</span></div>`;
-        if (server.finalUrl && server.finalUrl !== details.url) serverInfo += `<div class="detail-item"><span class="detail-label">Final URL <span class="detail-tooltip" title="URL after following redirects">ⓘ</span>:</span><span class="detail-value">${escapeHtml(server.finalUrl.substring(0, 50))}${server.finalUrl.length > 50 ? '...' : ''}</span></div>`;
+        if (server.sslInfo) serverInfo += `<div class="detail-item"><span class="detail-label">${addTooltip('SSL/TLS Status', 'SSL')}:</span><span class="detail-value">${escapeHtml(server.sslInfo)} ${server.sslInfo.includes('Secured') ? '✓' : '⚠️'}</span></div>`;
+        if (server.finalUrl && server.finalUrl !== details.url) serverInfo += `<div class="detail-item"><span class="detail-label">${addTooltip('Final URL', 'Final URL')}:</span><span class="detail-value">${escapeHtml(server.finalUrl.substring(0, 50))}${server.finalUrl.length > 50 ? '...' : ''}</span></div>`;
         if (server.technologies.length > 0) serverInfo += `<div class="detail-item"><span class="detail-label">Web Technologies:</span><span class="detail-value">${escapeHtml(server.technologies.join(', '))}</span></div>`;
         if (server.contentLength) serverInfo += `<div class="detail-item"><span class="detail-label">Content Size:</span><span class="detail-value">${formatBytes(server.contentLength)}</span></div>`;
         if (server.lastModified) serverInfo += `<div class="detail-item"><span class="detail-label">Last Modified:</span><span class="detail-value">${formatDate(server.lastModified)}</span></div>`;
@@ -346,7 +401,10 @@ function displayDetailedInfo(details) {
                 'Permissions-Policy': '⚙️'
             };
             const icon = icons[headerName] || '•';
-            securityInfo += `<div class="detail-item"><span class="detail-label">${icon} ${escapeHtml(headerName)}:</span><span class="detail-value ${statusClass}">${escapeHtml(headerStatus)}</span></div>`;
+            const headerLabel = headerName === 'Content-Security-Policy' ? 'CSP' : 
+                               headerName === 'Strict-Transport-Security' ? 'HSTS' : 
+                               headerName;
+            securityInfo += `<div class="detail-item"><span class="detail-label">${icon} ${addTooltip(headerLabel, headerLabel)}:</span><span class="detail-value ${statusClass}">${escapeHtml(headerStatus)}</span></div>`;
         }
         
         securityInfo += '</div>';
@@ -360,7 +418,7 @@ function displayDetailedInfo(details) {
         
         if (dns.domain) dnsInfo += `<div class="detail-item"><span class="detail-label">Domain Name:</span><span class="detail-value">${escapeHtml(dns.domain)}</span></div>`;
         if (dns.resolvedIP) dnsInfo += `<div class="detail-item"><span class="detail-label">Server Info:</span><span class="detail-value">${escapeHtml(dns.resolvedIP)}</span></div>`;
-        if (dns.dnsLookupTime) dnsInfo += `<div class="detail-item"><span class="detail-label">DNS Lookup Time:</span><span class="detail-value">${dns.dnsLookupTime}ms ${dns.dnsLookupTime < 500 ? '✓ Fast' : '⚠️'}</span></div>`;
+        if (dns.dnsLookupTime) dnsInfo += `<div class="detail-item"><span class="detail-label">${addTooltip('DNS Lookup', 'DNS Lookup')} Time:</span><span class="detail-value">${dns.dnsLookupTime}ms ${dns.dnsLookupTime < 500 ? '✓ Fast' : '⚠️'}</span></div>`;
         
         dnsInfo += '</div>';
         detailsGrid.innerHTML += dnsInfo;
@@ -371,10 +429,10 @@ function displayDetailedInfo(details) {
         const intel = details.domainIntel;
         let domainIntel = `<div class="detail-section"><div class="detail-title">📊 Domain Intelligence</div><div class="detail-subtitle">Hostname structure and naming-pattern indicators</div>`;
 
-        domainIntel += `<div class="detail-item"><span class="detail-label">Registrable Domain:</span><span class="detail-value">${escapeHtml(intel.registrableDomain || 'Unknown')}</span></div>`;
-        domainIntel += `<div class="detail-item"><span class="detail-label">TLD Class:</span><span class="detail-value">${escapeHtml(intel.tldClass || 'Unknown')}</span></div>`;
-        domainIntel += `<div class="detail-item"><span class="detail-label">Subdomain Profile:</span><span class="detail-value">${escapeHtml(intel.subdomainProfile || 'Unknown')} (${intel.subdomainCount || 0})</span></div>`;
-        domainIntel += `<div class="detail-item"><span class="detail-label">Hostname Entropy:</span><span class="detail-value">${intel.hostnameEntropy ?? 'N/A'} (${escapeHtml(intel.entropyLevel || 'Unknown')})</span></div>`;
+        domainIntel += `<div class="detail-item"><span class="detail-label">${addTooltip('Registrable Domain', 'Registrable Domain')}:</span><span class="detail-value">${escapeHtml(intel.registrableDomain || 'Unknown')}</span></div>`;
+        domainIntel += `<div class="detail-item"><span class="detail-label">${addTooltip('TLD Class', 'TLD Class')}:</span><span class="detail-value">${escapeHtml(intel.tldClass || 'Unknown')}</span></div>`;
+        domainIntel += `<div class="detail-item"><span class="detail-label">${addTooltip('Subdomain', 'Subdomain')} Profile:</span><span class="detail-value">${escapeHtml(intel.subdomainProfile || 'Unknown')} (${intel.subdomainCount || 0})</span></div>`;
+        domainIntel += `<div class="detail-item"><span class="detail-label">Hostname ${addTooltip('Entropy', 'Entropy')}:</span><span class="detail-value">${intel.hostnameEntropy ?? 'N/A'} (${escapeHtml(intel.entropyLevel || 'Unknown')})</span></div>`;
         domainIntel += `<div class="detail-item"><span class="detail-label">Hyphenated Labels:</span><span class="detail-value">${intel.hasHyphen ? '⚠️ Yes' : '✓ No'}</span></div>`;
         domainIntel += `<div class="detail-item"><span class="detail-label">Numeric Labels:</span><span class="detail-value">${intel.hasNumericLabel ? '⚠️ Yes' : '✓ No'}</span></div>`;
 

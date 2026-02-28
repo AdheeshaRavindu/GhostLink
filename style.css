@@ -840,6 +840,90 @@ body.ui-expanded .info-card p {
     word-break: break-word;
 }
 
+/* Tooltip Styles for Technical Terms */
+.tech-term {
+    position: relative;
+    color: #00ff41;
+    font-weight: 600;
+    border-bottom: 2px dotted #00ff41;
+    cursor: help;
+    transition: all 0.2s ease;
+}
+
+.tech-term:hover {
+    background-color: rgba(0, 255, 65, 0.1);
+    border-bottom-color: #00ffff;
+    color: #00ffff;
+}
+
+/* Tooltip Content */
+.tech-term::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #1a1a2e;
+    color: #e8e8e8;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #00ff41;
+    font-size: 0.85rem;
+    font-weight: normal;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 1000;
+    box-shadow: 0 4px 15px rgba(0, 255, 65, 0.2);
+}
+
+.tech-term:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Arrow pointer for tooltip */
+.tech-term::before {
+    content: '';
+    position: absolute;
+    bottom: 120%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #00ff41;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 1001;
+    pointer-events: none;
+}
+
+.tech-term:hover::before {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Mobile tooltip adjustments */
+@media (max-width: 600px) {
+    .tech-term::after {
+        white-space: normal;
+        width: 180px;
+        left: auto;
+        right: 0;
+        bottom: auto;
+        top: 125%;
+    }
+
+    .tech-term::before {
+        bottom: auto;
+        top: 120%;
+        border-top-color: transparent;
+        border-bottom-color: #00ff41;
+    }
+}
+
 /* Mobile */
 @media (max-width: 768px) {
     body {
